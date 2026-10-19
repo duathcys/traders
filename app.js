@@ -648,7 +648,7 @@ function modalHTML(){
       <p class="mini">${p.portions}인 소분 중 ${c.qty}소분 · ${won(c.price)}</p>
       <p class="mini">예약번호 ${c.oid}</p>
       <p class="warn" style="margin-top:10px">QR을 스캔한 뒤, 예약 금액에 맞는 바코드를 상품에 부착해 주세요.</p>
-      <div class="d-btns"><button class="ghost" data-a="close">닫기</button><button class="ok" data-a="barcode-issued" data-v="${escapeHtml(c.oid)}">바코드 발급 완료</button></div></div></div>`;
+      <div class="d-btns"><button class="ghost" data-a="cart">장바구니</button><button class="ok" data-a="barcode-issued" data-v="${escapeHtml(c.oid)}">바코드 발급 완료</button></div></div></div>`;
   }
   return '';
 }
@@ -735,7 +735,9 @@ async function startNewRound(){
     const order=state.cart.find(x=>x.pid===p.id&&x.roundId===roundId);
     if(order){state.modal={type:'success',oid:order.oid};render();}
     if(alreadyJoinedConflict){state.modal={type:'notice',...joinErrorNotice({message:'ALREADY_JOINED'})};render();}
-    toast(order?'예약이 확정됐어요!':state.pending.some(x=>x.pid===p.id&&x.roundId===roundId)?'새 모집에 참여했어요. 다른 참여자를 기다려 주세요':state.waitlist.some(x=>x.pid===p.id)?'새 모집 자리가 부족해 대기 중이에요':joinedNewRound?'새 모집을 시작하고 참여했어요':'모집 자리가 부족해 참여하지 못했어요. 현황을 확인해 주세요');
+    const pendingOrder=state.pending.find(x=>x.pid===p.id&&x.roundId===roundId);
+    if(pendingOrder&&!alreadyJoinedConflict) showShareAlert('대기 순서가 되어 새 소분 모집에 참여됐어요');
+    else toast(order?'예약이 확정됐어요!':pendingOrder?'새 모집에 참여했어요. 다른 참여자를 기다려 주세요':state.waitlist.some(x=>x.pid===p.id)?'새 모집 자리가 부족해 대기 중이에요':joinedNewRound?'새 모집을 시작하고 참여했어요':'모집 자리가 부족해 참여하지 못했어요. 현황을 확인해 주세요');
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
 async function cancelSharedOrder(){
