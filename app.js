@@ -217,11 +217,11 @@ async function syncSharedData({quiet=false}={}){
   state.rounds=rounds||[];
   // A confirmed order is eligible for QR only if its cohort itself is filled.
   // This prevents stale or inconsistent order status from exposing a pickup QR.
-  const filledRoundIds=new Set((rounds||[]).filter(r=>r.status==='filled'&&Number(r.joined_qty)>=Number(r.group_size)).map(r=>r.id));
+  const filledRoundIds=new Set((rounds||[]).filter(r=>r.status==='filled'&&Number(r.joined_qty)>=Number(r.group_size)).map(r=>String(r.id)));
   const orderView=x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at,barcodeIssuedAt:x.barcode_issued_at,completedAt:x.completed_at});
-  state.cart=(own[0]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(orderView);
+  state.cart=(own[0]||[]).filter(x=>filledRoundIds.has(String(x.round_id))).map(orderView);
   state.pending=(own[1]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
-  state.issued=(own[2]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(orderView);
+  state.issued=(own[2]||[]).filter(x=>filledRoundIds.has(String(x.round_id))).map(orderView);
   state.completed=(own[3]||[]).map(orderView);
   state.waitlist=(own[4]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
   const newlyConfirmed=state.cart.some(x=>wasPending.has(x.oid));
