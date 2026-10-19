@@ -220,3 +220,8 @@ html.framed body{background:#fff}
 .account-stats{display:grid;grid-template-columns:repeat(3,1fr);padding:24px 12px;background:#f7f7f7;border-bottom:10px solid var(--bg);text-align:center}
 .account-stats div{color:#888;border-right:1px solid #ddd;font-size:13px}.account-stats div:last-child{border:0}.account-stats b{display:block;color:#222;font-size:17px;margin-top:6px}
 .account-section{padding:36px 20px}.account-section h2{font-size:20px;margin-bottom:18px}.account-section button{width:100%;height:68px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;text-align:left;font-size:15px;color:#555}.account-section button span{color:#888}
+.cta-actions{display:grid;gap:4px}
+.cta-actions .linkrow{padding:10px 6px 2px;text-align:center}
+.account-order{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:5px}
+.account-order b{font-size:14px}.account-order span{font-size:12px;color:var(--sub)}
+.account-order button{height:auto;min-height:32px;border:0;justify-content:flex-end;color:var(--red);font-size:12px;font-weight:700}

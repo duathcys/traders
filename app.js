@@ -3,16 +3,14 @@
 
 /* ---------- 설정 ---------- */
 const CANCEL_NOTICE = '예약 후 취소하시면 취소 수수료가 부과돼요.';
-const KEY = 'traders_cart_v1';
-const WAIT_KEY = 'traders_waitlist_v1';
 const AUTH_KEY = 'traders_auth_v1';
 
-/* price: 상품 전체 가격 / portions: 몇 인 소분인지 / left: 매장에 남은 소분 수 */
+/* price: 상품 전체 가격 / portions: 모집 완료에 필요한 총 소분 수 */
 const PRODUCTS = [
-  {id:1, type:'정육', name:'호주산 냉장 안심 2.5kg', price:55800, portions:5, left:3, emoji:'🥩', cls:''},
-  {id:2, type:'수산', name:'생연어 필렛 2.0kg',     price:49800, portions:4, left:4, emoji:'🐟', cls:'fish'},
-  {id:3, type:'정육', name:'한우 불고기 1.0kg',     price:32800, portions:4, left:2, emoji:'🍖', cls:'beef'},
-  {id:4, type:'수산', name:'손질 새우 1.0kg',       price:24900, portions:3, left:3, emoji:'🦐', cls:'fish'}
+  {id:1, type:'정육', name:'호주산 냉장 안심 2.5kg', price:55800, portions:5, emoji:'🥩', cls:''},
+  {id:2, type:'수산', name:'생연어 필렛 2.0kg',     price:49800, portions:4, emoji:'🐟', cls:'fish'},
+  {id:3, type:'정육', name:'한우 불고기 1.0kg',     price:32800, portions:4, emoji:'🍖', cls:'beef'},
+  {id:4, type:'수산', name:'손질 새우 1.0kg',       price:24900, portions:3, emoji:'🦐', cls:'fish'}
 ];
 const CATS = [
   ['leaf','신선식품',true],['meat','정육/수산',true],['bowl','가공식품',false],['snow','냉동식품',false],
@@ -27,17 +25,59 @@ const unitPrice = p => Math.round(p.price / p.portions);                 // 1소
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
 const byId = id => PRODUCTS.find(p => p.id === +id);
 
-function loadCart(){ try{ return JSON.parse(localStorage.getItem(KEY)) || []; }catch(e){ return []; } }
-function saveCart(){ try{ localStorage.setItem(KEY, JSON.stringify(state.cart)); }catch(e){} }
-function loadWaitlist(){ try{ return JSON.parse(localStorage.getItem(WAIT_KEY)) || []; }catch(e){ return []; } }
-function saveWaitlist(){ try{ localStorage.setItem(WAIT_KEY, JSON.stringify(state.waitlist)); }catch(e){} }
-
-const state = { view:'share-home', stack:[], tab:'전체', product:null, qty:1, cart:loadCart(), waitlist:loadWaitlist(), modal:null };
+const state = { view:'share-home', stack:[], tab:'전체', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], modal:null };
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
-const reserved = p => state.cart.filter(c => c.pid === p.id).reduce((a, c) => a + c.qty, 0);
-const remain = p => Math.max(0, p.left - reserved(p));
+function syncHomeAuth(){
+  const entry = $('.login'); if(!entry) return;
+  entry.dataset.a = state.session ? 'account' : 'auth-entry';
+  entry.innerHTML = state.session ? '로그인됐어요 <b>마이페이지 열기</b>' : '<u>로그인하고</u> <b>혜택 받기</b>';
+}
+syncHomeAuth();
+
+const currentRound = p => state.rounds.find(r => +r.product_id === p.id && r.status === 'open');
+const latestRound = p => state.rounds.find(r => +r.product_id === p.id);
+const remain = p => { const r=currentRound(p); return r ? Math.max(0, r.group_size-r.joined_qty) : 0; };
 const cartTotal = () => state.cart.reduce((a, c) => a + c.price, 0);
+
+function authHeaders(){
+  const cfg=window.TRADERS_SUPABASE||{};
+  return {'apikey':cfg.anonKey||'', 'Authorization':`Bearer ${state.session?.access_token||cfg.anonKey||''}`, 'Content-Type':'application/json'};
+}
+async function dbRequest(path, options={}, retry=true){
+  const cfg=window.TRADERS_SUPABASE||{};
+  if(!cfg.url||!cfg.anonKey) throw new Error('Supabase 설정이 없어요.');
+  const response=await fetch(cfg.url.replace(/\/$/,'')+'/rest/v1/'+path,{...options,headers:{...authHeaders(),...(options.headers||{})}});
+  const raw=await response.text(); let data=null;
+  try{data=raw?JSON.parse(raw):null;}catch(e){data={message:raw};}
+  if(response.status===401 && retry && state.session?.refresh_token){
+    const refreshed=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':cfg.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:state.session.refresh_token})});
+    if(refreshed.ok){const session=await refreshed.json();state.session={...session,user:session.user};localStorage.setItem(AUTH_KEY,JSON.stringify(state.session));return dbRequest(path,options,false);}
+    state.session=null;localStorage.removeItem(AUTH_KEY);
+  }
+  if(!response.ok) throw new Error(data?.message||data?.hint||data?.details||'공유 DB 요청에 실패했어요. supabase-setup.sql을 먼저 적용했는지 확인해 주세요.');
+  return data;
+}
+const dbRpc=(name,args)=>dbRequest(`rpc/${name}`,{method:'POST',body:JSON.stringify(args)});
+async function syncSharedData({quiet=false}={}){
+  const roundsPromise=dbRequest('share_round_progress?select=*&order=created_at.desc');
+  const ownPromise=state.session?Promise.all([
+    dbRequest('share_orders?select=*&status=eq.confirmed&order=created_at.desc'),
+    dbRequest('share_orders?select=*&status=eq.pending&order=created_at.desc'),
+    dbRequest('share_waitlist?select=*&status=eq.waiting&order=created_at.asc')
+  ]):Promise.resolve([[],[],[]]);
+  const [rounds,own]=await Promise.all([roundsPromise,ownPromise]);
+  const wasPending=new Set(state.pending.map(x=>x.oid));
+  state.rounds=rounds||[];
+  state.cart=(own[0]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
+  state.pending=(own[1]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
+  state.waitlist=(own[2]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
+  const newlyConfirmed=state.cart.some(x=>wasPending.has(x.oid));
+  const newlyPromoted=state.pending.some(x=>!wasPending.has(x.oid));
+  if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
+  else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
+  if(['detail','list','cart','account'].includes(state.view)) render();
+}
 
 function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -91,46 +131,50 @@ function vList(){
   <div class="tabs">${['전체','정육','수산'].map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
   <div class="list">${items.map(p=>{
     const r = remain(p);
+    const round = currentRound(p);
     return `<div class="card" data-a="detail" data-v="${p.id}">
-      <div class="im ${p.cls}">${p.emoji}<span class="tag ${r?'':'off'}">${r ? p.portions+'인 소분' : '마감'}</span></div>
+      <div class="im ${p.cls}">${p.emoji}<span class="tag ${round?'':'off'}">${round ? '모집중' : '마감'}</span></div>
       <div class="info"><b>${p.name}</b>
         <span class="price">1소분 ${won(unitPrice(p))}</span><br>
         <span class="mini">총 ${won(p.price)} · ${p.portions}인 소분</span><br>
-        <span class="pill">${r ? `남은 소분 ${r}/${p.portions}` : '소분 마감'}</span>
-        <button class="btn sm" data-a="detail" data-v="${p.id}" ${r?'':'disabled'}>소분 예약하기</button></div></div>`;}).join('')}</div>
+        <span class="pill">${round ? `모집 ${round.joined_qty}/${round.group_size}소분` : `모집 마감 · 대기 ${latestRound(p)?.waiting_count||0}명`}</span>
+        <button class="btn sm" data-a="detail" data-v="${p.id}">상품 보기</button></div></div>`;}).join('')}</div>
   ${shareTab('share')}`;
 }
 
 /* ---------- 3. 상세 & 소분 수량 선택 ---------- */
 function vDetail(){
-  const p = state.product, r = remain(p);
+  const p = state.product, round=currentRound(state.product), r = round?remain(p):p.portions;
   const q = Math.min(Math.max(1, state.qty), Math.max(1, r));
+  const pending=state.pending.find(x=>x.pid===p.id), waiting=state.waitlist.find(x=>x.pid===p.id);
   state.qty = q;
   return `${head('소분 예약')}
   <div class="d-img ${p.cls}">${p.emoji}<span class="tag">${p.portions}인 소분</span></div>
   <div class="d-body">
     <h2>${p.name}</h2>
     <div class="d-price">${won(p.price)}</div>
-    <div class="chips"><span>${p.portions}인 소분</span><span>1소분 ${won(unitPrice(p))}</span><span>남은 ${r}소분</span></div>
+    <div class="chips"><span>${p.portions}인 소분</span><span>1소분 ${won(unitPrice(p))}</span><span>${round?`모집 ${round.joined_qty}/${round.group_size}`:`대기 ${latestRound(p)?.waiting_count||0}명`}</span></div>
 
     <div class="box"><h3>소분 수량 선택</h3>
       <div class="row">
         <div class="stepper"><button data-a="qty-dec" ${q<=1?'disabled':''}>−</button><span class="big">${q}소분</span><button data-a="qty-inc" ${q>=r?'disabled':''}>+</button></div>
         <span class="mini">최대 ${r}소분</span></div>
-      <p class="mini" style="margin-top:10px">혼자서도 여러 소분을 예약할 수 있어요.</p>
+      <p class="mini" style="margin-top:10px">${round?'모든 소분 수량이 모이면 예약이 확정돼요.':'새 모집을 시작하거나 대기할 소분 수량을 선택해 주세요.'}</p>
       <div class="calc"><span>${won(p.price)} ÷ ${p.portions}인 × ${q}소분</span><b>${won(calc(p,q))}</b></div>
     </div>
-    <div class="note" style="margin:14px 0 0">ⓘ 예약하면 소분된 금액으로 장바구니에 담겨요. 당일 매장에서 QR로 수령해요.</div>
+    <div class="note" style="margin:14px 0 0">ⓘ 전체 소분 모집이 완료된 뒤 장바구니와 수령 QR이 생성돼요.</div>
   </div>
-  <div class="cta">${r<1
-    ? `<button class="btn" data-a="${state.waitlist.some(w=>w.pid===p.id)?'leave-wait':'join-wait'}" data-v="${p.id}">${state.waitlist.some(w=>w.pid===p.id)?'대기 취소하기':'소분 대기하기'}</button>`
-    : `<button class="btn" data-a="ask-reserve">소분 예약하기 · ${won(calc(p,q))}</button>`}</div>`;
+  <div class="cta">${pending
+    ? `<button class="btn" data-a="ask-cancel" data-v="${pending.oid}">모집 대기 취소하기</button>`
+    : round
+      ? `<button class="btn" data-a="ask-reserve">소분 모집 참여하기 · ${won(calc(p,q))}</button>`
+      : `<div class="cta-actions"><button class="btn" data-a="${waiting?'leave-wait':'join-wait'}" data-v="${p.id}">${waiting?'대기 취소하기':'마감 대기 신청하기'}</button><button class="linkrow" data-a="start-round" data-v="${p.id}">같은 상품 새 소분 모집 시작하기 ›</button></div>`}</div>`;
 }
 
 /* ---------- 4. 장바구니 ---------- */
 function vCart(){
   if(!state.cart.length) return `${head('장바구니', false)}
-    <div class="empty"><i>${ic('cart')}</i><b>장바구니가 비어 있어요</b><p>소분 예약한 상품이 여기에 담겨요.</p>
+    <div class="empty"><i>${ic('cart')}</i><b>확정된 예약이 없어요</b><p>소분 모집이 완료되면 장바구니와 QR이 생성돼요.</p>
     <button class="btn" style="max-width:220px;margin:18px auto 0" data-a="shop">소분 상품 보러가기</button></div>`;
   return `${head('장바구니', false)}
   <div class="cart-list">${state.cart.map(c=>{
@@ -181,8 +225,10 @@ function vAccount(){
   const email = state.session?.user?.email || '';
   return `${head('마이페이지', false)}
   <div class="account-top"><div class="account-avatar">${ic('user')}</div><div><span>회원</span><b>${email}</b></div></div>
-  <div class="account-stats"><div>예약<b>${state.cart.length}건</b></div><div>대기<b>${state.waitlist.length}건</b></div><div>소분<b>${state.cart.reduce((n,c)=>n+c.qty,0)}개</b></div></div>
-  <div class="account-section"><h2>내 활동</h2><button data-a="cart">소분 예약 내역 <span>›</span></button><button data-a="share-home">소분 대기 내역 <span>${state.waitlist.length}건　›</span></button><button data-a="logout">로그아웃 <span>›</span></button></div>`;
+  <div class="account-stats"><div>예약<b>${state.cart.length}건</b></div><div>모집중<b>${state.pending.length}건</b></div><div>대기<b>${state.waitlist.length}건</b></div></div>
+  <div class="account-section"><h2>모집 참여 중</h2>${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><b>${p.name}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}</div>
+  <div class="account-section"><h2>마감 대기</h2>${state.waitlist.length?state.waitlist.map(x=>`<div class="account-order"><b>${byId(x.pid).name}</b><span>${x.qty}소분 · 다음 모집 대기</span><button data-a="leave-wait" data-v="${x.pid}">대기 취소</button></div>`).join(''):'<p class="mini">대기 신청한 상품이 없어요.</p>'}</div>
+  <div class="account-section"><h2>마이페이지</h2><button data-a="cart">확정된 예약 / QR 보기 <span>${state.cart.length}건　›</span></button><button data-a="share-home">소분 상품 보기 <span>›</span></button><button data-a="logout">로그아웃 <span>›</span></button></div>`;
 }
 async function submitAuth(form){
   const cfg = window.TRADERS_SUPABASE || {};
@@ -198,8 +244,16 @@ async function submitAuth(form){
     if(!response.ok) throw new Error(result.msg || result.message || result.error_description || result.error || '인증에 실패했어요');
     if(signup && !result.access_token){ toast('가입 확인 메일을 보냈어요. 이메일을 확인해 주세요.'); state.view='login'; render(); return; }
     state.session = {access_token:result.access_token,refresh_token:result.refresh_token,user:result.user};
-    localStorage.setItem(AUTH_KEY, JSON.stringify(state.session)); state.view='account'; render(); toast(signup?'회원가입이 완료됐어요':'로그인됐어요');
-  } catch(error){ toast(error.message || '요청을 처리하지 못했어요'); button.disabled=false; button.textContent=signup?'회원가입':'로그인'; }
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state.session)); state.view='account'; render();
+    try{await syncSharedData({quiet:true});toast(signup?'회원가입이 완료됐어요':'로그인됐어요');}
+    catch(error){toast(`로그인됐어요. 공유 DB 설정을 확인해 주세요: ${error.message}`);}
+  } catch(error){
+    const message = error.message || '';
+    toast(/rate.?limit|too many/i.test(message)
+      ? '인증 메일 발송 한도에 도달했어요. 잠시 후 다시 시도하거나 이메일 발송 서비스를 설정해 주세요.'
+      : message || '요청을 처리하지 못했어요');
+    button.disabled=false; button.textContent=signup?'회원가입':'로그인';
+  }
 }
 
 /* ---------- 팝업 ---------- */
@@ -208,10 +262,10 @@ function modalHTML(){
   if(m.type === 'confirm'){
     const p = state.product, q = state.qty;
     return `<div class="overlay" data-a="overlay"><div class="dialog">
-      <h3>정말 예약하시겠어요?</h3>
+      <h3>모집에 참여하시겠어요?</h3>
       <div class="d-sum"><b>${p.name}</b><span>${p.portions}인 소분 중 ${q}소분</span><strong>${won(calc(p,q))}</strong></div>
-      <p class="warn">${CANCEL_NOTICE}</p>
-      <div class="d-btns"><button class="ghost" data-a="close">취소</button><button class="ok" data-a="confirm-reserve">예약하기</button></div></div></div>`;
+      <p class="warn">전체 모집이 완료되면 장바구니와 QR이 발급돼요.</p>
+      <div class="d-btns"><button class="ghost" data-a="close">취소</button><button class="ok" data-a="confirm-reserve">참여하기</button></div></div></div>`;
   }
   if(m.type === 'cancel'){
     return `<div class="overlay" data-a="overlay"><div class="dialog">
@@ -239,10 +293,56 @@ function render(){
   const v = {'share-home':vShareHome, list:vList, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
+  syncHomeAuth();
   show('share');
 }
 function pick(id){ state.product = byId(id); state.qty = 1; }
-function newOid(){ return 'TS' + Date.now().toString(36).toUpperCase().slice(-5) + Math.floor(Math.random()*36).toString(36).toUpperCase(); }
+function requireLogin(){
+  if(state.session) return true;
+  state.view='login'; render(); toast('공동 소분에 참여하려면 먼저 로그인해 주세요'); return false;
+}
+async function joinCurrentRound(){
+  if(!requireLogin()) return;
+  const p=state.product, q=state.qty;
+  try{
+    await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});
+    await syncSharedData({quiet:true}); state.modal=null;
+    const confirmed=state.cart.some(x=>x.pid===p.id);
+    state.view=confirmed?'cart':'account'; render(); top0();
+    toast(confirmed?'모집이 완료되어 예약과 QR이 발급됐어요':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
+  }catch(error){toast(error.message||'모집 참여에 실패했어요');}
+}
+async function addToWaitlist(){
+  if(!requireLogin()) return;
+  const p=state.product;
+  try{await dbRpc('join_share_waitlist',{p_product_id:p.id,p_qty:state.qty,p_amount:calc(p,state.qty)});await syncSharedData({quiet:true});render();toast('공동 대기열에 등록됐어요');}
+  catch(error){if(error.message==='ROUND_AVAILABLE'){await syncSharedData({quiet:true}).catch(()=>{});render();toast('새 모집이 열렸어요. 모집에 참여해 주세요');}else toast(error.message||'대기 등록에 실패했어요');}
+}
+async function startNewRound(){
+  if(!requireLogin()) return;
+  const p=state.product;
+  try{
+    await dbRpc('start_share_round',{p_product_id:p.id,p_group_size:p.portions});
+    await syncSharedData({quiet:true});
+    const already=( )=>state.pending.some(x=>x.pid===p.id)||state.cart.some(x=>x.pid===p.id);
+    if(currentRound(p)&&!already()){
+      try{const q=Math.min(state.qty,remain(p));await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});}
+      catch(error){if(error.message!=='ALREADY_JOINED'&&error.message!=='ROUND_CLOSED')throw error;}
+    }
+    await syncSharedData({quiet:true});
+    if(!currentRound(p)&&!already()&&!state.waitlist.some(x=>x.pid===p.id)){
+      await dbRpc('join_share_waitlist',{p_product_id:p.id,p_qty:state.qty,p_amount:calc(p,state.qty)});
+      await syncSharedData({quiet:true});
+    }
+    state.view=state.cart.some(x=>x.pid===p.id)?'cart':'account';render();top0();
+    toast(state.cart.some(x=>x.pid===p.id)?'모집이 완료되어 예약과 QR이 발급됐어요':state.pending.some(x=>x.pid===p.id)?'새 소분 모집에 참여했어요':'다음 소분 모집 대기 신청이 완료됐어요');
+  }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
+}
+async function cancelSharedOrder(){
+  const code=state.modal?.oid;
+  try{const result=await dbRpc('cancel_share',{p_public_code:code});state.modal=null;await syncSharedData({quiet:true});render();toast(result?.waiter_promoted?'취소된 자리를 대기자가 이어받았어요':'참여가 취소됐어요');}
+  catch(error){toast(error.message||'취소에 실패했어요');}
+}
 
 document.addEventListener('click', e => {
   if(e.target.closest('[data-a="auth-entry"]')){ state.view=state.session?'account':'login'; render(); return; }
@@ -254,50 +354,29 @@ document.addEventListener('click', e => {
   const a = el.dataset.a, v = el.dataset.v;
   switch(a){
     case 'back': back(); break;
-    case 'exit': state.stack = []; state.modal = null; show('home'); break;
+    case 'exit': state.stack = []; state.modal = null; syncHomeAuth(); show('home'); break;
     case 'login': state.view='login'; render(); break;
     case 'signup': state.view='signup'; render(); break;
     case 'account': state.view=state.session?'account':'login'; render(); break;
     case 'share-home': state.view='share-home'; render(); break;
-    case 'logout': state.session=null; localStorage.removeItem(AUTH_KEY); state.view='share-home'; render(); toast('로그아웃했어요'); break;
+    case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.view='share-home'; render(); toast('로그아웃했어요'); break;
     case 'home-tab': state.stack = []; go('share-home', false); break;
     case 'cat-tab': state.tab = '전체'; go('list'); break;
     case 'cat': if(el.dataset.on === 'true'){ state.tab = '전체'; go('list'); } else toast('준비 중이에요'); break;
     case 'tab': state.tab = v; render(); break;
     case 'detail': pick(v); go('detail'); break;
-    case 'qty-inc': state.qty = Math.min(remain(state.product), state.qty + 1); render(); break;
+    case 'qty-inc': state.qty = Math.min(currentRound(state.product)?remain(state.product):state.product.portions, state.qty + 1); render(); break;
     case 'qty-dec': state.qty = Math.max(1, state.qty - 1); render(); break;
     case 'ask-reserve': state.modal = {type:'confirm'}; render(); break;
-    case 'join-wait':
-      if(!state.waitlist.some(w=>w.pid===+v)) state.waitlist.push({wid:newOid(),pid:+v,qty:1,createdAt:Date.now()});
-      saveWaitlist(); render(); toast('소분 대기에 등록됐어요'); break;
-    case 'leave-wait':
-      state.waitlist = state.waitlist.filter(w=>w.pid!==+v); saveWaitlist(); render(); toast('소분 대기가 취소됐어요'); break;
-    case 'confirm-reserve': {
-      const p = state.product, q = state.qty;
-      if(q > remain(p)){ state.modal = null; render(); toast('남은 소분 수량이 부족해요'); break; }
-      state.cart.push({oid:newOid(), pid:p.id, qty:q, price:calc(p,q)});
-      saveCart(); state.modal = null; state.view = 'cart'; render(); top0(); toast('소분 금액으로 장바구니에 담았어요');
-      break; }
+    case 'join-wait': addToWaitlist(); break;
+    case 'leave-wait': dbRpc('leave_share_waitlist',{p_product_id:+v}).then(()=>syncSharedData({quiet:true})).then(()=>{render();toast('대기가 취소됐어요');}).catch(error=>toast(error.message||'대기 취소에 실패했어요')); break;
+    case 'start-round': startNewRound(); break;
+    case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
     case 'shop': state.tab = '전체'; state.stack = ['share-home']; state.view = 'list'; render(); top0(); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
-    case 'confirm-cancel': {
-      const cancelled = state.cart.find(c => c.oid === state.modal.oid);
-      state.cart = state.cart.filter(c => c.oid !== state.modal.oid);
-      let promoted = null;
-      if(cancelled){
-        const p = byId(cancelled.pid), available = remain(p);
-        const idx = state.waitlist.findIndex(w => w.pid === p.id && w.qty <= available);
-        if(idx >= 0){
-          promoted = state.waitlist.splice(idx,1)[0];
-          state.cart.push({oid:newOid(),pid:p.id,qty:promoted.qty,price:calc(p,promoted.qty)});
-        }
-      }
-      saveCart(); saveWaitlist(); state.modal = null; render();
-      toast(promoted ? '대기 중인 예약이 자동으로 확정됐어요' : '예약이 취소됐어요'); break;
-    }
+    case 'confirm-cancel': cancelSharedOrder(); break;
     case 'close': case 'overlay': state.modal = null; render(); break;
     case 'visit': go('visit'); break;
   }
@@ -307,3 +386,10 @@ document.addEventListener('submit', e => {
   const form = e.target.closest('[data-auth-form]'); if(!form) return;
   e.preventDefault(); submitAuth(form);
 });
+
+// 다른 사용자의 모집 참여와 모집 완료를 반영하기 위해 공개 모집 상태와 내 예약을 주기적으로 동기화합니다.
+syncSharedData({quiet:true}).catch(()=>{});
+setInterval(()=>{
+  if(document.visibilityState==='visible') syncSharedData().catch(()=>{});
+},7000);
+window.addEventListener('focus',()=>syncSharedData({quiet:true}).catch(()=>{}));
