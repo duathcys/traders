@@ -5,17 +5,125 @@
 const CANCEL_NOTICE = '예약 후 취소하시면 취소 수수료가 부과돼요.';
 const AUTH_KEY = 'traders_auth_v1';
 
-/* price: 상품 전체 가격 / portions: 모집 완료에 필요한 총 소분 수 */
+/* price: 상품 판매가 / portions: 모집 완료에 필요한 총 소분 수 */
 const PRODUCTS = [
   {id:1, type:'정육', name:'호주산 냉장 안심 2.5kg', price:55800, portions:5, emoji:'🥩', cls:''},
   {id:2, type:'수산', name:'생연어 필렛 2.0kg',     price:49800, portions:4, emoji:'🐟', cls:'fish'},
   {id:3, type:'정육', name:'한우 불고기 1.0kg',     price:32800, portions:4, emoji:'🍖', cls:'beef'},
   {id:4, type:'수산', name:'손질 새우 1.0kg',       price:24900, portions:3, emoji:'🦐', cls:'fish'},
-  {id:5, type:'신선식품', name:'국내산 사과 2kg',     price:19900, portions:5, emoji:'🍎', cls:'fresh'},
-  {id:6, type:'신선식품', name:'제주 감귤 3kg',       price:17900, portions:4, emoji:'🍊', cls:'fresh'}
+  {id:5, type:'신선식품', category:'과일류', name:'국내산 사과 2kg', price:19900, portions:5, emoji:'🍎', cls:'fresh'},
+  {id:6, type:'신선식품', category:'과일류', name:'제주 감귤 3kg', price:17900, portions:4, emoji:'🍊', cls:'fresh'},
+  {id:7, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'햇 밤고구마', weight:'5kg', regularPrice:29800, price:19040, discount:36, price100g:381, rating:4.7, reviewCount:351, portions:5, emoji:'🍠', cls:'fresh'},
+  {id:8, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'감자', weight:'5kg', regularPrice:25900, price:11840, discount:54, price100g:237, rating:4.7, reviewCount:668, portions:5, emoji:'🥔', cls:'fresh'},
+  {id:9, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'햇연근(흙연근)', weight:'3kg', regularPrice:39900, price:19984, discount:49, price100g:666, rating:4.8, reviewCount:146, portions:5, emoji:'🪷', cls:'fresh'},
+  {id:10, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'미니양배추', weight:'5입', regularPrice:9980, price:8982, discount:10, price100g:299, rating:5.0, reviewCount:17, portions:5, emoji:'🥬', cls:'fresh'},
+  {id:11, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'국내산 단호박', weight:'10kg (8~12개)', regularPrice:29800, price:16800, discount:43, price100g:null, rating:4.4, reviewCount:65, portions:5, emoji:'🎃', cls:'fresh'},
+  {id:12, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'국내산 미니단호박', weight:'5kg (12~17개)', regularPrice:29800, price:15800, discount:46, price100g:null, rating:4.6, reviewCount:457, portions:5, emoji:'🎃', cls:'fresh'},
+  {id:13, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'호풍미 고구마', weight:'5kg', regularPrice:29800, price:23800, discount:20, price100g:476, rating:4.5, reviewCount:73, portions:5, emoji:'🍠', cls:'fresh'},
+  {id:14, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'아삭달콤한 햇당근', weight:'5kg', regularPrice:19900, price:12800, discount:35, price100g:256, rating:4.8, reviewCount:828, portions:5, emoji:'🥕', cls:'fresh'},
+  {id:15, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'우엉대', weight:'3kg (10~15개)', regularPrice:29850, price:21980, discount:26, price100g:733, rating:4.8, reviewCount:87, portions:5, emoji:'🥕', cls:'fresh'},
+  {id:16, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'장마', weight:'5kg', regularPrice:89800, price:59900, discount:33, price100g:1198, rating:4.7, reviewCount:16, portions:5, emoji:'🥔', cls:'fresh'},
+  {id:17, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'고흥 햇 통마늘', weight:'3kg (약 45~50개)', regularPrice:35400, price:21500, discount:39, price100g:717, rating:4.6, reviewCount:122, portions:5, emoji:'🧄', cls:'fresh'},
+  {id:18, type:'신선식품', category:'뿌리채소·고구마·호박류', name:'국내산 아이스 군고구마', weight:'900g', regularPrice:14980, price:12980, discount:13, price100g:1442, rating:4.8, reviewCount:89, portions:5, emoji:'🍠', cls:'fresh'},
+  {id:19, type:'신선식품', category:'버섯류', name:'국산품종 설원버섯', weight:'1.8kg', regularPrice:22410, price:18800, discount:16, price100g:1044, rating:4.5, reviewCount:131, portions:5, emoji:'🍄', cls:'fresh'},
+  {id:20, type:'신선식품', category:'버섯류', name:'참송이버섯', weight:'1kg', regularPrice:null, price:32800, discount:null, price100g:3280, rating:3.5, reviewCount:7, portions:5, emoji:'🍄', cls:'fresh'},
+  {id:21, type:'신선식품', category:'버섯류', name:'귀리로 키운 동충하초버섯', weight:'170g × 4입', regularPrice:null, price:17980, discount:null, price100g:2644, rating:null, reviewCount:null, portions:5, emoji:'🍄', cls:'fresh'},
+  {id:22, type:'신선식품', category:'버섯류', name:'고기맛이 나는 느타리버섯', weight:'1.8kg', regularPrice:23880, price:19800, discount:17, price100g:1100, rating:null, reviewCount:null, portions:5, emoji:'🍄', cls:'fresh'},
+  {id:23, type:'신선식품', category:'버섯류', name:'국내산 신품종 노랑느타리버섯', weight:'1kg', regularPrice:null, price:22800, discount:null, price100g:2280, rating:null, reviewCount:null, portions:5, emoji:'🍄', cls:'fresh'},
+  {id:24, type:'신선식품', category:'신선 채소·샐러드류', name:'창녕 다진마늘', weight:'1.6kg (400g × 4팩)', regularPrice:35100, price:19800, discount:43, price100g:1238, rating:4.8, reviewCount:828, portions:5, emoji:'🧄', cls:'fresh'},
+  {id:25, type:'신선식품', category:'신선 채소·샐러드류', name:'모닝샐러드', weight:'700g (100g × 7입)', regularPrice:13260, price:8980, discount:32, price100g:1283, rating:4.7, reviewCount:298, portions:5, emoji:'🥗', cls:'fresh'},
+  {id:26, type:'신선식품', category:'신선 채소·샐러드류', name:'눈꽃양배추', weight:'1.4kg (200g × 7입)', regularPrice:12180, price:11800, discount:3, price100g:843, rating:4.0, reviewCount:5, portions:5, emoji:'🥬', cls:'fresh'},
+  {id:27, type:'신선식품', category:'신선 채소·샐러드류', name:'7가지 채소 모둠쌈', weight:'1kg', regularPrice:13800, price:8700, discount:36, price100g:870, rating:4.8, reviewCount:486, portions:5, emoji:'🥬', cls:'fresh'},
+  {id:28, type:'신선식품', category:'신선 채소·샐러드류', name:'청도미나리', weight:'2kg', regularPrice:37800, price:27800, discount:26, price100g:1390, rating:4.7, reviewCount:31, portions:5, emoji:'🌿', cls:'fresh'},
+  {id:29, type:'신선식품', category:'신선 채소·샐러드류', name:'추부 깻잎(절임소스 증정)', weight:'1kg', regularPrice:34800, price:29400, discount:15, price100g:2940, rating:3.9, reviewCount:9, portions:5, emoji:'🌿', cls:'fresh'},
+  {id:30, type:'신선식품', category:'신선 채소·샐러드류', name:'국내산 셀러리', weight:'2kg', regularPrice:12980, price:9980, discount:23, price100g:499, rating:4.0, reviewCount:124, portions:5, emoji:'🥬', cls:'fresh'},
+  {id:31, type:'신선식품', category:'신선 채소·샐러드류', name:'주스용 비트', weight:'3kg', regularPrice:10980, price:8980, discount:18, price100g:299, rating:4.8, reviewCount:127, portions:5, emoji:'🫜', cls:'fresh'},
+  {id:32, type:'신선식품', category:'신선 채소·샐러드류', name:'착즙용 케일', weight:'1kg', regularPrice:null, price:9980, discount:null, price100g:null, rating:5.0, reviewCount:24, portions:5, emoji:'🥬', cls:'fresh'},
+  {id:33, type:'신선식품', category:'신선 채소·샐러드류', name:'샬롯', weight:'500g', regularPrice:null, price:11800, discount:null, price100g:2360, rating:4.0, reviewCount:5, portions:5, emoji:'🧅', cls:'fresh'},
+  {id:34, type:'정육', category:'스테이크·캠핑용 육류', name:'헤비앤텐더 토마호크 캠핑팩', weight:'500g', regularPrice:59000, price:36800, discount:37, price100g:7360, rating:5.0, reviewCount:219, portions:5, emoji:'🥩', cls:'beef'},
+  {id:35, type:'정육', category:'스테이크·캠핑용 육류', name:'헤비앤텐더 티본스테이크 캠핑팩', weight:'500g', regularPrice:58000, price:40950, discount:29, price100g:8190, rating:5.0, reviewCount:8, portions:5, emoji:'🥩', cls:'beef'},
+  {id:36, type:'정육', category:'스테이크·캠핑용 육류', name:'헤비앤텐더 엘본스테이크 캠핑팩', weight:'500g', regularPrice:57000, price:40050, discount:29, price100g:8010, rating:5.0, reviewCount:1, portions:5, emoji:'🥩', cls:'beef'},
+  {id:37, type:'정육', category:'돼지고기·한돈', name:'수육용 국내산 금한돈 앞다리', weight:'2kg', regularPrice:null, price:33800, discount:null, price100g:1690, rating:4.8, reviewCount:532, portions:5, emoji:'🥓', cls:'beef'},
+  {id:38, type:'정육', category:'돼지고기·한돈', name:'온가족 삼겹살 구이용(캐나다산)', weight:'2.4kg', regularPrice:47519, price:36800, discount:22, price100g:1533, rating:4.1, reviewCount:28, portions:5, emoji:'🥓', cls:'beef'},
+  {id:39, type:'정육', category:'돼지고기·한돈', name:'캠핑용 국내산 금한돈 삼겹살', weight:'1.5kg', regularPrice:47700, price:43800, discount:8, price100g:2920, rating:4.8, reviewCount:330, portions:5, emoji:'🥓', cls:'beef'},
+  {id:40, type:'정육', category:'돼지고기·한돈', name:'캠핑용 국내산 금한돈 돈목심', weight:'1.5kg', regularPrice:47700, price:43800, discount:8, price100g:2920, rating:4.3, reviewCount:7, portions:5, emoji:'🥓', cls:'beef'},
+  {id:41, type:'정육', category:'돼지고기·한돈', name:'도드람한돈 특수부위 스페셜 모둠', weight:'1.7kg', regularPrice:38000, price:29800, discount:21, price100g:1753, rating:4.7, reviewCount:307, portions:5, emoji:'🥓', cls:'beef'},
+  {id:42, type:'정육', category:'돼지고기·한돈', name:'온가족 한돈 돼지갈비 찜용', weight:'2.4kg', regularPrice:46500, price:34800, discount:25, price100g:1450, rating:4.5, reviewCount:181, portions:5, emoji:'🍖', cls:'beef'},
+  {id:43, type:'정육', category:'돼지고기·한돈', name:'청정돈 한입 냉동 삼겹살', weight:'2kg', regularPrice:null, price:null, discount:null, price100g:1499, rating:4.5, reviewCount:190, portions:5, emoji:'🥓', cls:'beef', availability:'판매 종료'},
+  {id:44, type:'정육', category:'돼지고기·한돈', name:'한돈 돼지갈비 모둠 세트', weight:'미표기', regularPrice:null, price:49800, discount:null, price100g:2264, rating:null, reviewCount:null, portions:5, emoji:'🍖', cls:'beef'},
+  {id:45, type:'정육', category:'한우·소고기', name:'몸보신 곰탕용 한우 모둠 곰거리', weight:'3kg', regularPrice:32000, price:23400, discount:26, price100g:780, rating:4.9, reviewCount:2026, portions:5, emoji:'🥩', cls:'beef'},
+  {id:46, type:'정육', category:'한우·소고기', name:'한우 알스지 수육·전골용', weight:'800g', regularPrice:24980, price:22800, discount:8, price100g:2850, rating:4.8, reviewCount:466, portions:5, emoji:'🥩', cls:'beef'},
+  {id:47, type:'정육', category:'한우·소고기', name:'한우 통 사태살', weight:'2kg', regularPrice:97600, price:70700, discount:27, price100g:3535, rating:4.8, reviewCount:251, portions:5, emoji:'🥩', cls:'beef'},
+  {id:48, type:'정육', category:'한우·소고기', name:'한우 육마카세', weight:'900g', regularPrice:null, price:134200, discount:null, price100g:14911, rating:5.0, reviewCount:24, portions:5, emoji:'🥩', cls:'beef'},
+  {id:49, type:'정육', category:'한우·소고기', name:'한우 구이의 정석(등심·채끝·갈비살)', weight:'600g', regularPrice:80000, price:79100, discount:1, price100g:13183, rating:4.7, reviewCount:85, portions:5, emoji:'🥩', cls:'beef'},
+  {id:50, type:'정육', category:'한우·소고기', name:'한우 금바구니 구이 세트', weight:'1kg', regularPrice:160000, price:147400, discount:7, price100g:14740, rating:4.8, reviewCount:68, portions:5, emoji:'🥩', cls:'beef'},
+  {id:51, type:'정육', category:'수입육·양고기', name:'냉동 양꼬치(어깨살)', weight:'400g', regularPrice:18400, price:16500, discount:10, price100g:4125, rating:5.0, reviewCount:2, portions:5, emoji:'🍢', cls:'beef'},
+  {id:52, type:'정육', category:'수입육·양고기', name:'미국산 생 LA갈비 냉장구이', weight:'800g', regularPrice:67800, price:47600, discount:29, price100g:5950, rating:4.7, reviewCount:40, portions:5, emoji:'🍖', cls:'beef'},
+  {id:53, type:'정육', category:'수입육·양고기', name:'달링다운 와규 홈파티팩', weight:'600g', regularPrice:50000, price:39800, discount:20, price100g:6633, rating:4.1, reviewCount:22, portions:5, emoji:'🥩', cls:'beef'},
+  {id:54, type:'정육', category:'양념육·갈비·제육볶음', name:'포천이동 양념 소갈비', weight:'1.5kg', regularPrice:65000, price:49980, discount:23, price100g:3332, rating:4.4, reviewCount:275, portions:5, emoji:'🍖', cls:'beef'},
+  {id:55, type:'정육', category:'양념육·갈비·제육볶음', name:'양념우대갈비 캠핑 세트', weight:'800g', regularPrice:78000, price:59800, discount:23, price100g:1977, rating:4.4, reviewCount:8, portions:5, emoji:'🍖', cls:'beef'},
+  {id:56, type:'정육', category:'양념육·갈비·제육볶음', name:'동물복지 간장·고추장 제육볶음', weight:'2.4kg', regularPrice:45000, price:34800, discount:22, price100g:1450, rating:4.9, reviewCount:296, portions:5, emoji:'🍲', cls:'beef'},
+  {id:57, type:'정육', category:'양념육·갈비·제육볶음', name:'춘천 닭갈비 순한맛', weight:'1kg', regularPrice:29000, price:26500, discount:8, price100g:2650, rating:4.9, reviewCount:102, portions:5, emoji:'🍗', cls:'beef'},
+  {id:58, type:'정육', category:'양념육·갈비·제육볶음', name:'원조 춘천닭갈비 매운맛', weight:'1kg', regularPrice:29000, price:26500, discount:8, price100g:2650, rating:5.0, reviewCount:97, portions:5, emoji:'🍗', cls:'beef'},
+  {id:59, type:'정육', category:'양념육·갈비·제육볶음', name:'강원도청정돼지 생돼지갈비', weight:'1.9kg', regularPrice:42900, price:33900, discount:20, price100g:1784, rating:4.5, reviewCount:64, portions:5, emoji:'🍖', cls:'beef'},
+  {id:60, type:'정육', category:'양념육·갈비·제육볶음', name:'강원도청정돼지 생제육볶음', weight:'1.6kg', regularPrice:29900, price:21900, discount:26, price100g:1369, rating:4.8, reviewCount:116, portions:5, emoji:'🍲', cls:'beef'},
+  {id:61, type:'정육', category:'양념육·갈비·제육볶음', name:'남영돈 양념돼지갈비', weight:'1.6kg', regularPrice:45000, price:33800, discount:24, price100g:2113, rating:5.0, reviewCount:5, portions:5, emoji:'🍖', cls:'beef'},
+  {id:62, type:'정육', category:'닭고기·닭 특수부위', name:'올품 IQF 냉동 닭발', weight:'2.4kg', regularPrice:26000, price:18900, discount:27, price100g:788, rating:4.9, reviewCount:61, portions:5, emoji:'🍗', cls:'beef'},
+  {id:63, type:'정육', category:'닭고기·닭 특수부위', name:'올품 IQF 냉동 닭가슴살', weight:'2.4kg', regularPrice:33000, price:24000, discount:27, price100g:1000, rating:5.0, reviewCount:20, portions:5, emoji:'🍗', cls:'beef'},
+  {id:64, type:'정육', category:'닭고기·닭 특수부위', name:'올품 IQF 냉동 닭안심', weight:'2.4kg', regularPrice:33000, price:24000, discount:27, price100g:1000, rating:null, reviewCount:null, portions:5, emoji:'🍗', cls:'beef'},
+  {id:65, type:'수산', category:'회·해산물·프리미엄 수산물', name:'흑산도 자연산 홍어', weight:'300g', regularPrice:45900, price:22112, discount:51, price100g:7371, rating:4.6, reviewCount:52, portions:5, emoji:'🐟', cls:'fish'},
+  {id:66, type:'수산', category:'회·해산물·프리미엄 수산물', name:'자연산 거제 돌멍게', weight:'2kg (12~18미)', regularPrice:39800, price:26010, discount:34, price100g:1301, rating:5.0, reviewCount:40, portions:5, emoji:'🦪', cls:'fish'},
+  {id:67, type:'수산', category:'회·해산물·프리미엄 수산물', name:'명인 명품 백굴비', weight:'1.8kg (10미)', regularPrice:42980, price:35082, discount:18, price100g:1949, rating:4.3, reviewCount:44, portions:5, emoji:'🐟', cls:'fish'},
+  {id:68, type:'수산', category:'회·해산물·프리미엄 수산물', name:'국산 생새우', weight:'1kg (35~45미)', regularPrice:33900, price:29500, discount:12, price100g:2950, rating:4.2, reviewCount:29, portions:5, emoji:'🦐', cls:'fish'},
+  {id:69, type:'수산', category:'회·해산물·프리미엄 수산물', name:'홈마카세 우니세트(단새우·성게알·감태)', weight:'미표기', regularPrice:43800, price:34900, discount:20, price100g:null, rating:4.6, reviewCount:170, portions:5, emoji:'🍣', cls:'fish'},
+  {id:70, type:'수산', category:'회·해산물·프리미엄 수산물', name:'참다랑어 2번 뱃살', weight:'900g', regularPrice:138000, price:92000, discount:33, price100g:10222, rating:4.6, reviewCount:78, portions:5, emoji:'🐟', cls:'fish'},
+  {id:71, type:'수산', category:'조개류·꽃게·골뱅이', name:'자연산 거제 바위굴(하프쉘)', weight:'1kg (3~4미)', regularPrice:29800, price:20900, discount:29, price100g:null, rating:2.5, reviewCount:2, portions:5, emoji:'🦪', cls:'fish'},
+  {id:72, type:'수산', category:'조개류·꽃게·골뱅이', name:'서해안 가을 생물 꽃게', weight:'2kg (5~10미)', regularPrice:44850, price:29900, discount:33, price100g:null, rating:3.7, reviewCount:458, portions:5, emoji:'🦀', cls:'fish'},
+  {id:73, type:'수산', category:'조개류·꽃게·골뱅이', name:'서해안 제철 참소라', weight:'2kg (12~15미/kg)', regularPrice:null, price:null, discount:null, price100g:1225, rating:4.5, reviewCount:76, portions:5, emoji:'🐚', cls:'fish', availability:'일시 품절'},
+  {id:74, type:'수산', category:'조개류·꽃게·골뱅이', name:'남해안 홍가리비', weight:'5kg', regularPrice:32120, price:28900, discount:10, price100g:578, rating:4.7, reviewCount:265, portions:5, emoji:'🦪', cls:'fish'},
+  {id:75, type:'수산', category:'조개류·꽃게·골뱅이', name:'동해안 골뱅이살(무침소스 증정)', weight:'700g', regularPrice:31500, price:28500, discount:9, price100g:4071, rating:5.0, reviewCount:4, portions:5, emoji:'🐚', cls:'fish'},
+  {id:76, type:'수산', category:'조개류·꽃게·골뱅이', name:'마요꽃게구이', weight:'1.2kg (4미)', regularPrice:42800, price:36800, discount:14, price100g:null, rating:5.0, reviewCount:2, portions:5, emoji:'🦀', cls:'fish'},
+  {id:77, type:'수산', category:'조개류·꽃게·골뱅이', name:'서해바다 절단꽃게(냉동)', weight:'2kg (8~10미)', regularPrice:29980, price:25500, discount:14, price100g:1275, rating:3.6, reviewCount:80, portions:5, emoji:'🦀', cls:'fish'},
+  {id:78, type:'수산', category:'조개류·꽃게·골뱅이', name:'자연산 냉동 대하세트', weight:'1kg (약 20미)', regularPrice:null, price:null, discount:null, price100g:3560, rating:4.2, reviewCount:6, portions:5, emoji:'🦐', cls:'fish', availability:'일시 품절'},
+  {id:79, type:'수산', category:'전복·장어·문어', name:'완도활전복(대)', weight:'1.4kg (19~22미)', regularPrice:105000, price:57000, discount:45, price100g:4071, rating:4.8, reviewCount:23, portions:5, emoji:'🐚', cls:'fish'},
+  {id:80, type:'수산', category:'전복·장어·문어', name:'완도활전복(특대)', weight:'1.4kg (14~17미)', regularPrice:135000, price:64930, discount:51, price100g:4638, rating:4.8, reviewCount:113, portions:5, emoji:'🐚', cls:'fish'},
+  {id:81, type:'수산', category:'전복·장어·문어', name:'프리미엄 황제전복', weight:'1.92kg (12마리)', regularPrice:148000, price:128000, discount:13, price100g:null, rating:5.0, reviewCount:4, portions:5, emoji:'🐚', cls:'fish'},
+  {id:82, type:'수산', category:'전복·장어·문어', name:'국산 자포니카 생 민물장어', weight:'2kg (손질 전)', regularPrice:70630, price:50750, discount:28, price100g:2538, rating:4.8, reviewCount:63, portions:5, emoji:'🐟', cls:'fish'},
+  {id:83, type:'수산', category:'전복·장어·문어', name:'자연산 생 바다장어', weight:'2kg (손질 전)', regularPrice:53590, price:38510, discount:28, price100g:1926, rating:4.5, reviewCount:11, portions:5, emoji:'🐟', cls:'fish'},
+  {id:84, type:'수산', category:'전복·장어·문어', name:'국산 데친문어', weight:'약 2.4kg', regularPrice:94800, price:85100, discount:10, price100g:null, rating:4.6, reviewCount:12, portions:5, emoji:'🐙', cls:'fish'},
+  {id:85, type:'수산', category:'전복·장어·문어', name:'국산 데친문어', weight:'약 2kg', regularPrice:84800, price:74480, discount:12, price100g:null, rating:5.0, reviewCount:91, portions:5, emoji:'🐙', cls:'fish'},
+  {id:86, type:'수산', category:'간고등어·냉동 생선', name:'안동간고등어살 세트', weight:'1.8kg (120g × 15)', regularPrice:49800, price:44800, discount:10, price100g:null, rating:5.0, reviewCount:6, portions:5, emoji:'🐟', cls:'fish'},
+  {id:87, type:'수산', category:'간고등어·냉동 생선', name:'안동간고등어 세트', weight:'1.8kg (900g × 2)', regularPrice:49800, price:44800, discount:10, price100g:null, rating:4.3, reviewCount:7, portions:5, emoji:'🐟', cls:'fish'},
+  {id:88, type:'수산', category:'간고등어·냉동 생선', name:'서해바다 냉동 덕자병어 특대', weight:'1.2~1.8kg (2마리)', regularPrice:null, price:59800, discount:null, price100g:null, rating:5.0, reviewCount:6, portions:5, emoji:'🐟', cls:'fish'},
+  {id:89, type:'수산', category:'간고등어·냉동 생선', name:'서해바다 냉동 덕자병어 왕왕', weight:'약 2kg (1마리)', regularPrice:null, price:99800, discount:null, price100g:null, rating:null, reviewCount:null, portions:5, emoji:'🐟', cls:'fish'},
+  {id:90, type:'수산', category:'제주 수산물·선물세트', name:'서귀포수협 제주 냉동 갈치(왕)', weight:'900g (450g × 2팩)', regularPrice:93500, price:88000, discount:5, price100g:9778, rating:5.0, reviewCount:3, portions:5, emoji:'🐟', cls:'fish'},
+  {id:91, type:'수산', category:'제주 수산물·선물세트', name:'서귀포수협 제주 냉동 갈치(특대)', weight:'700g (350g × 2팩)', regularPrice:63000, price:58000, discount:7, price100g:8286, rating:5.0, reviewCount:1, portions:5, emoji:'🐟', cls:'fish'},
+  {id:92, type:'수산', category:'제주 수산물·선물세트', name:'서귀포수협 제주 냉동 옥돔(특대)', weight:'800g (400g × 2팩)', regularPrice:87000, price:80000, discount:8, price100g:10000, rating:3.4, reviewCount:3, portions:5, emoji:'🐟', cls:'fish'},
+  {id:93, type:'수산', category:'제주 수산물·선물세트', name:'서귀포수협 제주 냉동 옥돔(대)', weight:'600g (300g × 2팩)', regularPrice:74200, price:68000, discount:8, price100g:11333, rating:5.0, reviewCount:1, portions:5, emoji:'🐟', cls:'fish'},
+  {id:94, type:'수산', category:'제주 수산물·선물세트', name:'제주 옥돔·갈치 세트', weight:'1.3kg', regularPrice:120000, price:110000, discount:8, price100g:8462, rating:5.0, reviewCount:4, portions:5, emoji:'🐟', cls:'fish'}
 ];
 const FRESH_PRODUCTS = PRODUCTS.filter(p => p.type === '신선식품');
 const MEAT_SEAFOOD_PRODUCTS = PRODUCTS.filter(p => ['정육','수산'].includes(p.type));
+const FRESH_CATEGORIES = ['전체','뿌리채소·고구마·호박류','버섯류','신선 채소·샐러드류','과일류'];
+const MEAT_CATEGORIES = ['전체','스테이크·캠핑용 육류','돼지고기·한돈','한우·소고기','수입육·양고기','양념육·갈비·제육볶음','닭고기·닭 특수부위'];
+const SEAFOOD_CATEGORIES = ['전체','회·해산물·프리미엄 수산물','조개류·꽃게·골뱅이','전복·장어·문어','간고등어·냉동 생선','제주 수산물·선물세트'];
+const SPLIT_REVIEW_EXAMPLES = {
+  '뿌리채소·고구마·호박류':'대용량이라 망설였는데 필요한 만큼 나눠 담을 수 있어 부담이 줄었어요.',
+  '버섯류':'한 번에 다 쓰기 어려운 버섯을 나눠 받아 신선할 때 요리하기 좋았어요.',
+  '신선 채소·샐러드류':'여러 채소를 조금씩 받아 샐러드와 반찬으로 알차게 활용했어요.',
+  '과일류':'가족이 먹을 만큼만 나눠 받아 보관하기 편했어요.',
+  '스테이크·캠핑용 육류':'캠핑 인원수에 맞춰 나눠 구매하니 다양한 부위를 부담 없이 즐겼어요.',
+  '돼지고기·한돈':'대용량 돼지고기를 필요한 양만 받아 냉동실 자리를 아낄 수 있었어요.',
+  '한우·소고기':'구이와 국거리용을 나눠 받아 메뉴에 맞춰 쓰기 편했어요.',
+  '수입육·양고기':'평소 망설이던 고기도 소분으로 맛볼 수 있어 좋았어요.',
+  '양념육·갈비·제육볶음':'양념육을 한 끼 분량으로 받아 간편하게 조리했어요.',
+  '닭고기·닭 특수부위':'닭고기를 필요한 만큼 나눠 받아 요리별로 활용하기 좋았어요.',
+  '회·해산물·프리미엄 수산물':'프리미엄 해산물을 소량씩 나눠 특별한 식사로 즐겼어요.',
+  '조개류·꽃게·골뱅이':'손질이 번거로운 해산물을 필요한 만큼 받아 여러 요리에 썼어요.',
+  '전복·장어·문어':'양이 많은 수산물을 나눠 받아 신선할 때 요리하기 좋았어요.',
+  '간고등어·냉동 생선':'한 끼씩 나눠 보관하니 냉동 생선 꺼내 쓰기가 편했어요.',
+  '제주 수산물·선물세트':'다양한 제주 수산물을 나눠 받아 가족 식탁에 알차게 올렸어요.'
+};
 const CATS = [
   ['leaf','신선식품',true],['meat','정육/수산',true],['bowl','가공식품',false],['snow','냉동식품',false],
   ['bread','베이커리',false],['drink','음료/주류',false],['soap','생활용품',false],['paw','반려동물',false]
@@ -24,12 +132,13 @@ const CATS = [
 /* ---------- 유틸 ---------- */
 const $ = s => document.querySelector(s);
 const won = n => n.toLocaleString('ko-KR') + '원';
+const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 const unitPrice = p => Math.round(p.price / p.portions);                 // 1소분 가격
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
 const byId = id => PRODUCTS.find(p => p.id === +id);
 
-const state = { view:'share-home', stack:[], tab:'전체', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], modal:null };
+const state = { view:'share-home', stack:[], tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], modal:null };
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
 function syncHomeAuth(){
@@ -39,7 +148,7 @@ function syncHomeAuth(){
 }
 syncHomeAuth();
 
-const currentRound = p => state.rounds.find(r => +r.product_id === p.id && r.status === 'open');
+const currentRound = p => p.price && !p.availability ? state.rounds.find(r => +r.product_id === p.id && r.status === 'open') : null;
 const latestRound = p => state.rounds.find(r => +r.product_id === p.id);
 const remain = p => { const r=currentRound(p); return r ? Math.max(0, r.group_size-r.joined_qty) : 0; };
 const cartTotal = () => state.cart.reduce((a, c) => a + c.price, 0);
@@ -84,7 +193,7 @@ async function syncSharedData({quiet=false}={}){
   if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
-  if(['detail','categories','fresh-list','meat-list','cart','account'].includes(state.view)) render();
+  if(['detail','categories','fresh-list','meat-list','search','cart','account'].includes(state.view)) render();
 }
 
 function toast(msg){
@@ -122,7 +231,7 @@ function vShareHome(){
   return `
   <div class="sh-top"><button class="back" data-a="exit" aria-label="트레이더스 홈">${ic('back')}</button>
     <div class="brand">TRADERS <span>SHARE</span></div>${cartBtn()}</div>
-  <div class="sh-search">상품명, 카테고리를 검색해보세요</div>
+  <button class="sh-search" data-a="search-open">${ic('search')}<span>상품명, 카테고리를 검색해보세요</span></button>
   <div class="hero"><div><b>필요한 만큼만,<br>소분 예약!</b><p>대용량 정육·수산을 원하는 만큼</p></div><div class="e">🥩</div></div>
   <div class="cats">${CATS.map(c=>`<button data-a="cat" data-v="${c[1]}" data-on="${c[2]}"><i>${ic(c[0])}</i>${c[1]}</button>`).join('')}</div>
   <div class="sec-t">지금 많이 찾는 상품</div>
@@ -135,15 +244,17 @@ function vShareHome(){
 /* ---------- 2. 카테고리별 상품 목록 ---------- */
 function productCards(items){
   return items.map(p=>{
+    const available=Number.isFinite(p.price)&&p.price>0&&!p.availability;
     const r = remain(p);
     const round = currentRound(p);
-    return `<div class="card" data-a="detail" data-v="${p.id}">
-      <div class="im ${p.cls}">${p.emoji}<span class="tag ${round?'':'off'}">${round ? '모집중' : '마감'}</span></div>
+    return `<div class="card" ${available?`data-a="detail" data-v="${p.id}"`:''}>
+      <div class="im ${p.cls}">${p.emoji}<span class="tag ${round?'':'off'}">${p.availability|| (round ? '모집중' : '마감')}</span></div>
       <div class="info"><b>${p.name}</b>
-        <span class="price">1소분 ${won(unitPrice(p))}</span><br>
-        <span class="mini">총 ${won(p.price)} · ${p.portions}인 소분</span><br>
-        <span class="pill">${round ? `모집 ${round.joined_qty}/${round.group_size}소분` : `모집 마감 · 대기 ${latestRound(p)?.waiting_count||0}명`}</span>
-        <button class="btn sm" data-a="detail" data-v="${p.id}">상품 보기</button></div></div>`;
+        ${p.weight?`<span class="mini">${p.weight}</span><br>`:''}
+        ${available?`<span class="price">${won(p.price)}</span>${p.discount?` <span class="discount">${p.discount}% 할인</span>`:''}<br>`:`<span class="unavailable">${p.availability||'판매 정보 없음'}</span><br>`}
+        ${p.regularPrice?`<span class="old">${won(p.regularPrice)}</span> `:''}<span class="mini">${available?`1소분 ${won(unitPrice(p))}`:''}${p.price100g?`${available?' · ':''}100g ${won(p.price100g)}`:''}</span><br>
+        ${p.rating!==null&&p.rating!==undefined?`<span class="rating">★ ${p.rating.toFixed(1)} <span class="mini">(${p.reviewCount??0} 리뷰)</span></span><br>`:''}
+        ${available?`<span class="pill">${round ? `모집 ${round.joined_qty}/${round.group_size}소분` : `모집 마감 · 대기 ${latestRound(p)?.waiting_count||0}명`}</span><button class="btn sm" data-a="detail" data-v="${p.id}">상품 보기</button>`:''}</div></div>`;
   }).join('');
 }
 function vCategories(){
@@ -154,17 +265,48 @@ function vCategories(){
   ${shareTab('share')}`;
 }
 function vFreshList(){
+  const items=FRESH_PRODUCTS.filter(p=>state.freshCategory==='전체'||p.category===state.freshCategory);
   return `${head('신선식품')}
-  <div class="sec-t">신선식품 소분 상품</div>
-  <div class="list">${productCards(FRESH_PRODUCTS)}</div>
+  <div class="tabs fresh-tabs">${FRESH_CATEGORIES.map(c=>`<button class="${state.freshCategory===c?'on':''}" data-a="fresh-category" data-v="${c}">${c}</button>`).join('')}</div>
+  <div class="sec-t">${state.freshCategory==='전체'?'신선식품 소분 상품':state.freshCategory}</div>
+  <div class="list">${productCards(items)}</div>
   ${shareTab('share')}`;
 }
 function vMeatList(){
-  const items=MEAT_SEAFOOD_PRODUCTS.filter(p=>state.tab==='전체'||p.type===state.tab);
+  const categories=state.tab==='수산'?SEAFOOD_CATEGORIES:state.tab==='정육'?MEAT_CATEGORIES:['전체',...MEAT_CATEGORIES.slice(1),...SEAFOOD_CATEGORIES.slice(1)];
+  const items=MEAT_SEAFOOD_PRODUCTS.filter(p=>(state.tab==='전체'||p.type===state.tab)&&(state.productCategory==='전체'||p.category===state.productCategory));
   const tabs=['전체','정육','수산'];
   return `${head('정육/수산')}
   <div class="tabs">${tabs.map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
+  <div class="tabs fresh-tabs">${categories.map(c=>`<button class="${state.productCategory===c?'on':''}" data-a="product-category" data-v="${c}">${c}</button>`).join('')}</div>
   <div class="list">${productCards(items)}</div>
+  ${shareTab('share')}`;
+}
+function searchProducts(query){
+  const q=query.trim().toLocaleLowerCase('ko-KR');
+  if(!q) return [];
+  const normalized=q.replace(/\s/g,'');
+  const meatSeafoodAlias=normalized==='정육/수산'||normalized==='정육수산';
+  return PRODUCTS.filter(p=>{
+    const fields=[p.name,p.category,p.type,p.weight].filter(Boolean).join(' ').toLocaleLowerCase('ko-KR');
+    return meatSeafoodAlias?['정육','수산'].includes(p.type):fields.includes(q);
+  });
+}
+function searchResultsHTML(q){
+  const results=searchProducts(q);
+  return q?`<div class="sec-t">“${escapeHtml(q)}” 검색 결과 ${results.length}개</div>
+    ${results.length?`<div class="list">${productCards(results)}</div>`:'<div class="search-empty">검색 결과가 없어요.<br>상품명이나 카테고리를 다시 확인해 주세요.</div>'}`
+    :'<div class="search-empty">상품명 또는 카테고리를 입력해 주세요.<br><span>예: 고구마, 버섯류, 정육, 수산</span></div>';
+}
+function vSearch(){
+  const q=state.searchQuery.trim();
+  return `${head('상품 검색',false)}
+  <form class="product-search" data-search-form>
+    <label for="product-search-input">${ic('search')}</label>
+    <input id="product-search-input" name="q" type="search" placeholder="상품명, 카테고리를 검색해보세요" value="${escapeHtml(q)}" autocomplete="off">
+    <button type="button" data-a="search-clear" aria-label="검색어 지우기" ${q?'':'hidden'}>×</button>
+  </form>
+  <div id="search-results">${searchResultsHTML(q)}</div>
   ${shareTab('share')}`;
 }
 
@@ -177,9 +319,13 @@ function vDetail(){
   return `${head('소분 예약')}
   <div class="d-img ${p.cls}">${p.emoji}<span class="tag">${p.portions}인 소분</span></div>
   <div class="d-body">
+    ${p.category?`<div class="mini">${p.category}${p.weight?` · ${p.weight}`:''}</div>`:''}
     <h2>${p.name}</h2>
-    <div class="d-price">${won(p.price)}</div>
+    <div class="d-price">${won(p.price)}${p.discount?` <span class="off">${p.discount}% 할인</span>`:''}</div>
+    ${p.regularPrice?`<div class="mini"><span class="old">${won(p.regularPrice)}</span> 정상가</div>`:''}
     <div class="chips"><span>${p.portions}인 소분</span><span>1소분 ${won(unitPrice(p))}</span><span>${round?`모집 ${round.joined_qty}/${round.group_size}`:`대기 ${latestRound(p)?.waiting_count||0}명`}</span></div>
+    ${p.price100g?`<div class="mini">100g당 ${won(p.price100g)}</div>`:''}
+    ${p.rating?`<div class="review-summary">★ ${p.rating.toFixed(1)} <span class="mini">제공된 상품 평점 · 리뷰 ${p.reviewCount}개</span></div>`:''}
 
     <div class="box"><h3>소분 수량 선택</h3>
       <div class="row">
@@ -188,6 +334,8 @@ function vDetail(){
       <p class="mini" style="margin-top:10px">${round?'모든 소분 수량이 모이면 예약이 확정돼요.':'새 모집을 시작하거나 대기할 소분 수량을 선택해 주세요.'}</p>
       <div class="calc"><span>${won(p.price)} ÷ ${p.portions}인 × ${q}소분</span><b>${won(calc(p,q))}</b></div>
     </div>
+    <div class="review-box"><div class="review-title"><b>소분 후기 예시</b><span>화면 예시 · 실제 구매 후기 아님</span></div>
+      <p>“${SPLIT_REVIEW_EXAMPLES[p.category]||'필요한 만큼 나눠 받아 보관과 활용이 편했어요.'}”</p></div>
     <div class="note" style="margin:14px 0 0">ⓘ 전체 소분 모집이 완료된 뒤 장바구니와 수령 QR이 생성돼요.</div>
   </div>
   <div class="cta">${pending
@@ -316,7 +464,7 @@ function modalHTML(){
 
 /* ---------- 렌더 & 이벤트 ---------- */
 function render(){
-  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
+  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, search:vSearch, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
   syncHomeAuth();
@@ -391,7 +539,11 @@ document.addEventListener('click', e => {
     case 'cat':
       if(el.dataset.on !== 'true'){ toast('준비 중이에요'); break; }
       state.tab='전체'; go(v==='신선식품'?'fresh-list':'meat-list'); break;
-    case 'tab': state.tab = v; render(); break;
+    case 'search-open': state.searchQuery=''; go('search'); $('#product-search-input')?.focus(); break;
+    case 'search-clear': state.searchQuery=''; render(); $('#product-search-input')?.focus(); break;
+    case 'tab': state.tab = v; state.productCategory='전체'; render(); break;
+    case 'fresh-category': state.freshCategory = v; render(); break;
+    case 'product-category': state.productCategory = v; render(); break;
     case 'detail': pick(v); go('detail'); break;
     case 'qty-inc': state.qty = Math.min(currentRound(state.product)?remain(state.product):state.product.portions, state.qty + 1); render(); break;
     case 'qty-dec': state.qty = Math.max(1, state.qty - 1); render(); break;
@@ -411,8 +563,16 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('submit', e => {
+  const searchForm=e.target.closest('[data-search-form]');
+  if(searchForm){ e.preventDefault(); return; }
   const form = e.target.closest('[data-auth-form]'); if(!form) return;
   e.preventDefault(); submitAuth(form);
+});
+document.addEventListener('input', e=>{
+  if(e.target.id!=='product-search-input') return;
+  state.searchQuery=e.target.value;
+  $('#search-results').innerHTML=searchResultsHTML(state.searchQuery.trim());
+  e.target.parentElement.querySelector('[data-a="search-clear"]').hidden=!state.searchQuery;
 });
 
 // 다른 사용자의 모집 참여와 모집 완료를 반영하기 위해 공개 모집 상태와 내 예약을 주기적으로 동기화합니다.
