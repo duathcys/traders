@@ -231,7 +231,7 @@ async function syncSharedData({quiet=false}={}){
     if(!state.modal&&order){state.modal={type:'success',oid:order.oid};render();}
     toast('모집이 완료되어 예약이 확정됐어요');
   }
-  else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
+  else if(!quiet&&newlyPromoted) showShareAlert('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
   if(!state.modal&&['detail','categories','fresh-list','meat-list','search','reserve','cart','account'].includes(state.view)) render();
 }
@@ -239,6 +239,10 @@ async function syncSharedData({quiet=false}={}){
 function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1900);
+}
+function showShareAlert(message){
+  state.modal={type:'share-alert',message};
+  $('#layer').innerHTML=modalHTML();
 }
 function qrSvg(text){
   try{ const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({cellSize:4, margin:2, scalable:true}); }
@@ -558,6 +562,13 @@ async function submitAuth(form){
 /* ---------- 팝업 ---------- */
 function modalHTML(){
   const m = state.modal; if(!m) return '';
+  if(m.type === 'share-alert'){
+    return `<div class="overlay celebration-overlay" data-a="overlay"><div class="dialog celebration-dialog">
+      <div class="celebration-burst" aria-hidden="true"><i>🎆</i><i>✨</i><i>🎇</i><i>✨</i><i>🎉</i><i>✨</i></div>
+      <div class="celebration-icon" aria-hidden="true">🎊</div><h3>좋은 소식이에요!</h3>
+      <p>${escapeHtml(m.message)}</p>
+      <div class="d-btns"><button class="ok" data-a="close">확인</button></div></div></div>`;
+  }
   if(m.type === 'notice'){
     return `<div class="overlay" data-a="overlay"><div class="dialog notice-dialog" role="alertdialog" aria-modal="true" aria-labelledby="notice-title" aria-describedby="notice-message">
       <div class="notice-icon" aria-hidden="true">!</div>

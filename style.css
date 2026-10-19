@@ -275,6 +275,19 @@ html.framed body{background:#fff}
 @media(prefers-reduced-motion:reduce){.success-mark,.confetti i{animation:none}.success-mark{opacity:1;transform:none}}
 #toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,10px);background:rgba(25,28,27,.92);color:#fff;font-size:13px;padding:11px 18px;border-radius:24px;z-index:40;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+.celebration-overlay{overflow:hidden}
+.celebration-dialog{text-align:center;position:relative;overflow:hidden;padding-top:30px}
+.celebration-dialog h3{margin:8px 0 10px;font-size:20px}
+.celebration-dialog>p{font-size:14px;line-height:1.55;color:#555}
+.celebration-icon{font-size:46px;line-height:1;animation:celebration-pop .65s cubic-bezier(.2,1.5,.5,1) both}
+.celebration-burst{position:absolute;inset:0;pointer-events:none}
+.celebration-burst i{position:absolute;font-style:normal;font-size:22px;animation:celebration-spark 1.2s ease-out both}
+.celebration-burst i:nth-child(1){left:10%;top:16%}.celebration-burst i:nth-child(2){left:24%;top:8%;animation-delay:.12s}
+.celebration-burst i:nth-child(3){right:12%;top:15%;animation-delay:.2s}.celebration-burst i:nth-child(4){right:25%;top:6%;animation-delay:.08s}
+.celebration-burst i:nth-child(5){left:5%;top:40%;animation-delay:.16s}.celebration-burst i:nth-child(6){right:7%;top:38%;animation-delay:.24s}
+@keyframes celebration-pop{from{transform:scale(.45) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+@keyframes celebration-spark{0%{opacity:0;transform:scale(.2) translateY(14px)}35%{opacity:1;transform:scale(1.25) translateY(-4px)}100%{opacity:0;transform:scale(.7) translateY(-18px)}}
+@media(prefers-reduced-motion:reduce){.celebration-icon,.celebration-burst i{animation:none}}
 
 /* ---------- 인증 / 마이페이지 ---------- */
 .auth-brand{display:grid;place-items:center;padding:66px 0 48px}
