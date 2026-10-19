@@ -157,7 +157,11 @@ async function syncSharedData({quiet=false}={}){
   state.waitlist=(own[2]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
   const newlyConfirmed=state.cart.some(x=>wasPending.has(x.oid));
   const newlyPromoted=state.pending.some(x=>!wasPending.has(x.oid));
-  if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
+  if(!quiet&&newlyConfirmed){
+    const order=state.cart.find(x=>wasPending.has(x.oid));
+    if(!state.modal&&order){state.modal={type:'success',oid:order.oid};render();}
+    toast('모집이 완료되어 예약이 확정됐어요');
+  }
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
   if(!state.modal&&['detail','categories','fresh-list','meat-list','search','reserve','cart','account'].includes(state.view)) render();
@@ -477,6 +481,17 @@ async function submitAuth(form){
 /* ---------- 팝업 ---------- */
 function modalHTML(){
   const m = state.modal; if(!m) return '';
+  if(m.type === 'success'){
+    const c=state.cart.find(x=>x.oid===m.oid); if(!c) return '';
+    const p=byId(c.pid);
+    return `<div class="overlay success-overlay" data-a="overlay"><div class="dialog success-dialog" role="dialog" aria-modal="true" aria-labelledby="success-title">
+      <div class="confetti" aria-hidden="true">${Array.from({length:24},(_,i)=>`<i style="--angle:${i*15}deg;--delay:${i*12}ms;--color:hsl(${i*47},85%,58%)"></i>`).join('')}</div>
+      <div class="success-mark" aria-hidden="true">✓</div>
+      <p class="success-kicker">모집 완료</p><h3 id="success-title">예약이 확정됐어요!</h3>
+      <p class="success-copy">${escapeHtml(p.name)} ${c.qty}소분 예약과 수령 QR이 준비됐어요.</p>
+      <div class="d-btns"><button class="ghost" data-a="close">나중에</button><button class="ok" data-a="success-qr" data-v="${escapeHtml(c.oid)}">QR 확인하기</button></div>
+    </div></div>`;
+  }
   if(m.type === 'confirm'){
     const p = state.product, q = state.qty;
     return `<div class="overlay" data-a="overlay"><div class="dialog">
@@ -527,7 +542,8 @@ async function joinCurrentRound(){
     await syncSharedData({quiet:true}); state.modal=null;
     const confirmed=state.cart.some(x=>x.pid===p.id);
     state.navTab='reserve';state.view='reserve';render();top0();
-    toast(confirmed?'모집이 완료되어 예약과 QR이 발급됐어요':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
+    if(confirmed){const order=state.cart.find(x=>x.pid===p.id);if(order){state.modal={type:'success',oid:order.oid};render();}}
+    toast(confirmed?'예약이 확정됐어요!':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
   }catch(error){toast(error.message||'모집 참여에 실패했어요');}
 }
 async function addToWaitlist(){
@@ -553,7 +569,9 @@ async function startNewRound(){
       await syncSharedData({quiet:true});
     }
     state.view=state.cart.some(x=>x.pid===p.id)?'cart':'reserve';state.navTab='reserve';render();top0();
-    toast(state.cart.some(x=>x.pid===p.id)?'모집이 완료되어 예약과 QR이 발급됐어요':state.pending.some(x=>x.pid===p.id)?'새 소분 모집에 참여했어요':'다음 소분 모집 대기 신청이 완료됐어요');
+    const order=state.cart.find(x=>x.pid===p.id);
+    if(order){state.modal={type:'success',oid:order.oid};render();}
+    toast(order?'예약이 확정됐어요!':state.pending.some(x=>x.pid===p.id)?'새 소분 모집에 참여했어요':'다음 소분 모집 대기 신청이 완료됐어요');
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
 async function cancelSharedOrder(){
@@ -609,6 +627,7 @@ document.addEventListener('click', e => {
     case 'reserve-section': document.getElementById(v)?.scrollIntoView({behavior:'smooth',block:'start'}); break;
     case 'suggestion-vote': toggleSuggestionVote(v); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
+    case 'success-qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
     case 'confirm-cancel': cancelSharedOrder(); break;
     case 'close': case 'overlay': state.modal = null; render(); break;

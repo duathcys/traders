@@ -236,6 +236,18 @@ html.framed body{background:#fff}
 .qr{width:210px;height:210px;margin:0 auto 14px;padding:8px;border:1px solid var(--line);border-radius:16px;background:#fff}
 .qr svg{width:100%;height:100%;display:block}
 .qn{display:block;font-size:15px;margin-bottom:4px}
+.success-overlay{overflow:hidden}
+.success-dialog{position:relative;overflow:visible;text-align:center;padding-top:28px}
+.success-dialog h3{margin:4px 0 8px;font-size:21px}
+.success-mark{display:grid;place-items:center;width:68px;height:68px;margin:0 auto 12px;border-radius:50%;background:#e8f5ec;color:#238447;font-size:38px;font-weight:800;box-shadow:0 0 0 8px #e8f5ec66;animation:success-pop .5s cubic-bezier(.2,.9,.3,1.3) both}
+.success-kicker{color:#238447;font-size:12px;font-weight:800;letter-spacing:.08em}
+.success-copy{color:var(--sub);font-size:13px;line-height:1.55}
+.success-dialog .d-btns{margin-top:20px}
+.confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.confetti i{position:absolute;left:50%;top:70px;width:7px;height:12px;border-radius:2px;background:var(--color);opacity:0;animation:confetti-burst .95s cubic-bezier(.15,.7,.25,1) var(--delay) both}
+@keyframes success-pop{from{transform:scale(.55);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes confetti-burst{0%{opacity:0;transform:rotate(var(--angle)) translateY(0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:rotate(var(--angle)) translateY(-145px) scale(1)}}
+@media(prefers-reduced-motion:reduce){.success-mark,.confetti i{animation:none}.success-mark{opacity:1;transform:none}}
 #toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,10px);background:rgba(25,28,27,.92);color:#fff;font-size:13px;padding:11px 18px;border-radius:24px;z-index:40;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
