@@ -237,6 +237,26 @@ html.framed body{background:#fff}
 .notice-dialog h3{margin-bottom:8px}
 .notice-copy{color:var(--sub);font-size:13px;line-height:1.6}
 .qr-d{text-align:center}
+.payment-dialog{padding:0 20px 20px}
+.payment-head{display:flex;align-items:center;gap:12px;margin:0 -20px 22px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.payment-head>div{display:grid;gap:2px;flex:1;text-align:center}
+.payment-head b{font-size:16px}.payment-head span{font-size:11px;color:var(--sub)}
+.payment-head>i{font-style:normal;font-size:15px}
+.payment-back{font-size:28px;line-height:1;color:#444}
+.payment-label{margin:16px 0 6px;color:var(--sub);font-size:12px}
+.payment-amount{display:block;margin-bottom:20px;font-size:28px}
+.payment-breakdown{display:grid;grid-template-columns:1fr auto;gap:9px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px}
+.payment-breakdown span{color:var(--sub)}
+.payment-methods{display:grid;gap:8px}
+.payment-method{width:100%;display:flex;align-items:center;gap:10px;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:left;font-size:13px}
+.payment-method.selected{border:1.5px solid var(--g);background:#f7fbef}
+.payment-method>b{flex:1}.payment-radio{color:var(--g);font-size:17px}
+.payment-demo{margin:14px 0 0;padding:10px;border-radius:10px;background:#f7f7f7;color:var(--sub);font-size:11px;line-height:1.5}
+.payment-success-dialog{text-align:center}
+.payment-success-mark{display:grid;place-items:center;width:64px;height:64px;margin:6px auto 14px;border-radius:50%;background:#e8f5ec;color:#238447;font-size:38px;font-weight:800}
+.payment-success-kicker{color:#238447;font-size:12px;font-weight:800;letter-spacing:.06em}
+.payment-success-dialog h3{margin:5px 0 8px;font-size:21px}
+.payment-success-dialog .payment-amount{margin:14px 0 4px}
 .qr{width:210px;height:210px;margin:0 auto 14px;padding:8px;border:1px solid var(--line);border-radius:16px;background:#fff}
 .qr svg{width:100%;height:100%;display:block}
 .qn{display:block;font-size:15px;margin-bottom:4px}

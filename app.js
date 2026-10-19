@@ -2,7 +2,10 @@
    홈 → 정육/수산 목록 → 상품 상세(소분 수량 선택) → 예약 확인 팝업 → 장바구니(소분 금액) → 품목별 QR */
 
 /* ---------- 설정 ---------- */
-const CANCEL_NOTICE = '예약 후 취소하시면 취소 수수료가 부과돼요.';
+const CANCEL_NOTICE = 'QR 발급 후 취소 시 수수료가 발생해요. QR 발급 전에는 수수료가 없어요.';
+const CANCEL_FEE_RATE = 0.10;
+const CANCEL_FEE_MIN = 1000;
+const CANCEL_FEE_MAX = 3500;
 const AUTH_KEY = 'traders_auth_v1';
 
 /* price: 상품 판매가 / portions: 모집 완료에 필요한 총 소분 수 */
@@ -14,21 +17,81 @@ let FRESH_CATEGORIES = ['전체'];
 let MEAT_CATEGORIES = ['전체'];
 let SEAFOOD_CATEGORIES = ['전체'];
 const SPLIT_REVIEW_EXAMPLES = {
-  '뿌리채소·고구마·호박류':'대용량이라 망설였는데 필요한 만큼 나눠 담을 수 있어 부담이 줄었어요.',
-  '버섯류':'한 번에 다 쓰기 어려운 버섯을 나눠 받아 신선할 때 요리하기 좋았어요.',
-  '신선 채소·샐러드류':'여러 채소를 조금씩 받아 샐러드와 반찬으로 알차게 활용했어요.',
-  '과일류':'가족이 먹을 만큼만 나눠 받아 보관하기 편했어요.',
-  '스테이크·캠핑용 육류':'캠핑 인원수에 맞춰 나눠 구매하니 다양한 부위를 부담 없이 즐겼어요.',
-  '돼지고기·한돈':'대용량 돼지고기를 필요한 양만 받아 냉동실 자리를 아낄 수 있었어요.',
-  '한우·소고기':'구이와 국거리용을 나눠 받아 메뉴에 맞춰 쓰기 편했어요.',
-  '수입육·양고기':'평소 망설이던 고기도 소분으로 맛볼 수 있어 좋았어요.',
-  '양념육·갈비·제육볶음':'양념육을 한 끼 분량으로 받아 간편하게 조리했어요.',
-  '닭고기·닭 특수부위':'닭고기를 필요한 만큼 나눠 받아 요리별로 활용하기 좋았어요.',
-  '회·해산물·프리미엄 수산물':'프리미엄 해산물을 소량씩 나눠 특별한 식사로 즐겼어요.',
-  '조개류·꽃게·골뱅이':'손질이 번거로운 해산물을 필요한 만큼 받아 여러 요리에 썼어요.',
-  '전복·장어·문어':'양이 많은 수산물을 나눠 받아 신선할 때 요리하기 좋았어요.',
-  '간고등어·냉동 생선':'한 끼씩 나눠 보관하니 냉동 생선 꺼내 쓰기가 편했어요.',
-  '제주 수산물·선물세트':'다양한 제주 수산물을 나눠 받아 가족 식탁에 알차게 올렸어요.'
+  '뿌리채소·고구마·호박류':[
+    '고구마 한 상자는 늘 남겼는데, 몇 개씩 나눠 오니 찌는 날에 맞춰 쓰기 딱 좋았어요.',
+    '호박은 조금만 필요할 때가 많아서 소분이 반가웠어요. 남은 재료 걱정도 덜했고요.',
+    '받은 양이 한 번에 요리하기 부담 없는 정도라 보관할 자리도 많이 차지하지 않았어요.'
+  ],
+  '버섯류':[
+    '버섯은 종류별로 조금씩 쓰고 싶었는데 필요한 만큼 담아 전골 한 번 해 먹기 좋았어요.',
+    '한 팩을 다 못 써서 시들 때가 많았는데, 이번엔 볶음 요리에 쓰고 깔끔하게 끝냈어요.',
+    '버섯 여러 종류를 조금씩 맛볼 수 있어서 다음엔 어떤 걸 살지 고르기도 편했어요.'
+  ],
+  '신선 채소·샐러드류':[
+    '샐러드 채소를 큰 봉지로 사면 마지막엔 남았는데, 먹을 만큼이라 신선할 때 다 썼어요.',
+    '채소 몇 가지를 조금씩 받아 반찬이랑 샐러드에 나눠 쓰니 장보기 구성이 알찼어요.',
+    '양배추를 통째로 사기 망설였는데 필요한 양만 받아 냉장고 공간이 여유로워졌어요.'
+  ],
+  '과일류':[
+    '과일 한 박스는 다 먹기 전에 무를까 걱정됐는데 가족이 먹는 속도에 맞춰 살 수 있어요.',
+    '여러 과일을 조금씩 받아 간식으로 먹어봤어요. 한 종류만 잔뜩 사는 것보다 좋네요.',
+    '주말에 먹을 만큼만 받아 보관이 간단했어요. 다음 장보기 때도 이용하고 싶어요.'
+  ],
+  '스테이크·캠핑용 육류':[
+    '캠핑 인원에 맞춰 고기를 준비할 수 있어 남기지 않았어요. 부위도 나눠 고를 수 있어 좋았습니다.',
+    '스테이크는 양이 많아 망설였는데 한 끼에 맞는 양이라 집에서 굽기 부담 없었어요.',
+    '캠핑용으로 필요한 만큼만 챙겨 가니 아이스박스 공간도 아끼고 준비가 한결 편했어요.'
+  ],
+  '돼지고기·한돈':[
+    '삼겹살을 한 번 먹을 분량으로 받아 냉동실에서 꺼내기 편했어요. 포장도 정돈돼 있었습니다.',
+    '대용량 가격은 괜찮아도 보관이 걱정이었는데, 필요한 양만 살 수 있어 만족스러워요.',
+    '구이용으로 한 번, 볶음용으로 한 번 쓰기 알맞은 양이라 남김없이 요리했어요.'
+  ],
+  '한우·소고기':[
+    '구이용을 조금만 사고 싶었는데 소분으로 맞춰 살 수 있어 특별한 저녁에 잘 먹었어요.',
+    '국거리와 구이용을 필요한 만큼 골라 살 수 있어 메뉴 계획 세우기가 편했습니다.',
+    '한우는 가격도 양도 부담스러웠는데 한 끼 분량으로 나눠 구매하니 시도하기 좋았어요.'
+  ],
+  '수입육·양고기':[
+    '양고기를 많이 사기엔 부담됐는데 둘이 먹을 만큼이라 처음 맛보기에 좋았어요.',
+    '평소 잘 안 사던 부위를 소량으로 골라봤어요. 다음엔 다른 조리법으로도 먹어보려 해요.',
+    '한 번 구워 먹기 좋은 양이라 남은 고기를 오래 보관할 걱정이 없었어요.'
+  ],
+  '양념육·갈비·제육볶음':[
+    '양념육은 한 끼에 다 못 먹을 때가 있었는데 가족 수에 맞는 양이라 편했어요.',
+    '퇴근 후 별도 재료를 많이 준비하지 않아도 돼서 저녁 메뉴로 빠르게 만들었습니다.',
+    '갈비를 넉넉히 사기 망설였는데 필요한 만큼만 준비할 수 있어 주말 식사에 잘 썼어요.'
+  ],
+  '닭고기·닭 특수부위':[
+    '닭고기를 요리별로 나눠 쓸 수 있어요. 한 팩을 해동했다가 남기는 일이 줄었습니다.',
+    '닭 특수부위는 양이 많으면 어쩌나 했는데 소량으로 맛볼 수 있어 좋았어요.',
+    '한 번 조리하기 알맞은 양이라 닭볶음탕 재료 준비가 간단했어요.'
+  ],
+  '회·해산물·프리미엄 수산물':[
+    '회를 큰 구성으로 사기 부담스러웠는데 둘이 먹을 만큼이라 주말 저녁에 알맞았어요.',
+    '해산물을 여러 종류 조금씩 준비해 식탁을 차려봤어요. 남는 재료 없이 먹기 좋았습니다.',
+    '특별한 날 먹으려고 필요한 양만 골랐어요. 양 조절이 돼서 다음에도 이용할 생각이에요.'
+  ],
+  '조개류·꽃게·골뱅이':[
+    '조개를 한가득 사면 손질과 보관이 걱정됐는데 한 번 끓일 양이라 편했어요.',
+    '꽃게를 몇 마리만 준비할 수 있어 가족끼리 먹기 좋았어요. 남은 재료가 없어 깔끔하네요.',
+    '손질할 양이 많지 않아 해물 요리 준비가 수월했어요. 필요한 만큼 고를 수 있는 점이 좋았습니다.'
+  ],
+  '전복·장어·문어':[
+    '전복을 많이 사기엔 부담됐는데 필요한 개수만큼 골라 요리할 수 있어 좋았어요.',
+    '장어는 양 조절이 어려웠는데 한 끼 먹기 좋은 양이라 준비하기 편했습니다.',
+    '문어를 한 번에 다 쓰지 않아도 돼서 좋았어요. 남은 양을 보관할 걱정이 줄었습니다.'
+  ],
+  '간고등어·냉동 생선':[
+    '생선은 한 번 먹을 양씩 꺼낼 수 있어 편해요. 냉동실에서 자리도 덜 차지했습니다.',
+    '간고등어를 필요한 끼니 수에 맞춰 구매했어요. 매번 큰 포장을 뜯지 않아도 되네요.',
+    '생선 반찬이 필요할 때 한 팩씩 꺼내 쓰니 식단 준비가 간단해졌어요.'
+  ],
+  '제주 수산물·선물세트':[
+    '선물세트는 구성이 커서 망설였는데 가족이 먹을 양만 준비할 수 있어 좋았어요.',
+    '제주 수산물을 몇 가지 조금씩 맛볼 수 있어 구성 고르는 재미가 있었습니다.',
+    '한 번에 많이 먹기 어려운 품목이라 필요한 만큼 나눠 살 수 있는 점이 실용적이에요.'
+  ]
 };
 const CATS = [
   ['leaf','신선식품',true],['meat','정육/수산',true],['bowl','가공식품',false],['snow','냉동식품',false],
@@ -62,6 +125,7 @@ const currentRound = p => p.price && !p.availability ? state.rounds.find(r => +r
 const latestRound = p => state.rounds.find(r => +r.product_id === p.id);
 const remain = p => { const r=currentRound(p); return r ? Math.max(0, r.group_size-r.joined_qty) : 0; };
 const cartTotal = () => state.cart.reduce((a, c) => a + c.price, 0);
+const cancellationFee = amount => Math.min(CANCEL_FEE_MAX, Math.max(CANCEL_FEE_MIN, Math.round(amount * CANCEL_FEE_RATE)));
 
 function authHeaders(){
   const cfg=window.TRADERS_SUPABASE||{};
@@ -319,6 +383,8 @@ function communitySuggestionsHTML(){
 /* ---------- 3. 상세 & 소분 수량 선택 ---------- */
 function vDetail(){
   const p = state.product, round=currentRound(state.product), r = round?remain(p):p.portions;
+  const reviewExamples=SPLIT_REVIEW_EXAMPLES[p.category]||['필요한 만큼 나눠 받아 보관과 활용이 편했어요.','한 번에 다 쓰기 알맞은 양이라 남김 없이 요리했어요.','대용량 구매가 부담스러웠는데 필요한 분량만 고를 수 있어 좋았어요.'];
+  const reviewExample=reviewExamples[(Number(p.id)||0)%reviewExamples.length];
   const q = Math.min(Math.max(1, state.qty), Math.max(1, r));
   const pending=state.pending.find(x=>x.pid===p.id), waiting=state.waitlist.find(x=>x.pid===p.id);
   state.qty = q;
@@ -341,7 +407,7 @@ function vDetail(){
       <div class="calc"><span>${won(p.price)} ÷ ${p.portions}인 × ${q}소분</span><b>${won(calc(p,q))}</b></div>
     </div>
     <div class="review-box"><div class="review-title"><b>소분 후기 예시</b><span>화면 예시 · 실제 구매 후기 아님</span></div>
-      <p>“${SPLIT_REVIEW_EXAMPLES[p.category]||'필요한 만큼 나눠 받아 보관과 활용이 편했어요.'}”</p></div>
+      <p>“${reviewExample}”</p></div>
     <div class="note" style="margin:14px 0 0">ⓘ 전체 소분 모집이 완료된 뒤 장바구니와 수령 QR이 생성돼요.</div>
   </div>
   <div class="cta">${pending
@@ -508,9 +574,36 @@ function modalHTML(){
       <div class="d-btns"><button class="ghost" data-a="close">취소</button><button class="ok" data-a="confirm-reserve">참여하기</button></div></div></div>`;
   }
   if(m.type === 'cancel'){
+    const c=state.cart.find(x=>x.oid===m.oid);
+    const p=c&&byId(c.pid);
+    const fee=c?cancellationFee(c.price):0;
     return `<div class="overlay" data-a="overlay"><div class="dialog">
-      <h3>예약을 취소하시겠어요?</h3><p class="warn">${CANCEL_NOTICE}</p>
-      <div class="d-btns"><button class="ghost" data-a="close">돌아가기</button><button class="ok red" data-a="confirm-cancel">예약 취소</button></div></div></div>`;
+      <h3>예약을 취소하시겠어요?</h3>
+      ${c?`<div class="d-sum"><b>${escapeHtml(p?.name||'소분 예약')}</b><span>소분 금액 ${won(c.price)}</span><span>취소 수수료 (10%, 최소 ${won(CANCEL_FEE_MIN)} · 최대 ${won(CANCEL_FEE_MAX)})</span><strong>${won(fee)}</strong></div><p class="warn">QR 발급 후 취소라 수수료가 적용돼요. 현재 테스트 버전은 결제가 연결되지 않아 실제 청구는 되지 않아요.</p>`:`<p class="warn">QR 발급 전이라 취소 수수료는 없어요.</p>`}
+      <div class="d-btns"><button class="ghost" data-a="close">돌아가기</button><button class="ok red" data-a="${c?'cancel-payment':'confirm-cancel'}">${c?'결제창으로 이동':'예약 취소'}</button></div></div></div>`;
+  }
+  if(m.type === 'cancel-payment'){
+    const c=state.cart.find(x=>x.oid===m.oid); if(!c) return '';
+    const fee=cancellationFee(c.price);
+    const method=m.method||'card';
+    const methods=[['card','💳','카드 결제'],['bank','🏦','계좌 이체'],['easy','✨','간편 결제']];
+    return `<div class="overlay" data-a="overlay"><div class="dialog payment-dialog">
+      <div class="payment-head"><button class="payment-back" data-a="back-cancel">‹</button><div><b>취소 수수료 결제</b><span>결제 화면</span></div><i>🔒</i></div>
+      <p class="payment-label">결제 금액</p><strong class="payment-amount">${won(fee)}</strong>
+      <div class="payment-breakdown"><span>소분 금액</span><b>${won(c.price)}</b><span>취소 수수료 (10%, 최소 ${won(CANCEL_FEE_MIN)} · 최대 ${won(CANCEL_FEE_MAX)})</span><b>${won(fee)}</b></div>
+      <p class="payment-label">결제 수단</p><div class="payment-methods">${methods.map(([id,icon,label])=>`<button class="payment-method ${method===id?'selected':''}" data-a="payment-method" data-v="${id}"><span>${icon}</span><b>${label}</b><span class="payment-radio">${method===id?'●':'○'}</span></button>`).join('')}</div>
+      <p class="payment-demo">UI 확인용 결제 화면이에요. 실제 결제는 되지 않지만, 결제하기를 누르면 예약 취소는 반영돼요.</p>
+      <div class="d-btns"><button class="ghost" data-a="close">닫기</button><button class="ok" data-a="payment-demo">결제하기</button></div>
+    </div></div>`;
+  }
+  if(m.type === 'payment-success'){
+    const method=({card:'카드 결제',bank:'계좌 이체',easy:'간편 결제'})[m.method]||'카드 결제';
+    return `<div class="overlay" data-a="overlay"><div class="dialog payment-success-dialog">
+      <div class="payment-success-mark">✓</div><p class="payment-success-kicker">취소 완료</p><h3>예약이 취소됐어요</h3>
+      <p class="payment-amount">${won(m.fee)}</p><p class="success-copy">취소 수수료 · ${method} 결제 화면 시뮬레이션</p>
+      <p class="payment-demo">결제는 시뮬레이션이며 실제 청구되지 않았어요. 예약 취소는 반영됐어요.</p>
+      <div class="d-btns"><button class="ok" data-a="close">확인</button></div>
+    </div></div>`;
   }
   if(m.type === 'qr'){
     const c = state.cart.find(x => x.oid === m.oid); if(!c) return '';
@@ -608,8 +701,18 @@ async function startNewRound(){
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
 async function cancelSharedOrder(){
-  const code=state.modal?.oid;
-  try{const result=await dbRpc('cancel_share',{p_public_code:code});state.modal=null;await syncSharedData({quiet:true});render();toast(result?.waiter_promoted?'취소된 자리를 대기자가 이어받았어요':'참여가 취소됐어요');}
+  const modal=state.modal;
+  const code=modal?.oid;
+  const payment=modal?.type==='cancel-payment';
+  const order=state.cart.find(x=>x.oid===code);
+  try{
+    const result=await dbRpc('cancel_share',{p_public_code:code});
+    state.cart=state.cart.filter(x=>x.oid!==code);
+    try{await syncSharedData({quiet:true});}catch(error){/* Keep the successful cancellation visible if refresh temporarily fails. */}
+    state.modal=payment?{type:'payment-success',fee:cancellationFee(order?.price||0),method:modal.method||'card'}:null;
+    render();
+    if(!payment) toast(result?.waiter_promoted?'취소된 자리를 대기자가 이어받았어요':'참여가 취소됐어요');
+  }
   catch(error){toast(error.message||'취소에 실패했어요');}
 }
 
@@ -662,6 +765,19 @@ document.addEventListener('click', e => {
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'success-qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
+    case 'cancel-payment': state.modal = {type:'cancel-payment', oid:state.modal?.oid, method:'card'}; render(); break;
+    case 'back-cancel': state.modal = {type:'cancel', oid:state.modal?.oid}; render(); break;
+    case 'payment-method': {
+      state.modal = {...state.modal, method:v};
+      document.querySelectorAll('.payment-method').forEach(button=>{
+        const selected=button.dataset.v===v;
+        button.classList.toggle('selected',selected);
+        const radio=button.querySelector('.payment-radio');
+        if(radio) radio.textContent=selected?'●':'○';
+      });
+      break;
+    }
+    case 'payment-demo': el.disabled=true; el.textContent='처리 중…'; cancelSharedOrder(); break;
     case 'confirm-cancel': cancelSharedOrder(); break;
     case 'close': case 'overlay': state.modal = null; render(); break;
     case 'visit': go('visit'); break;
