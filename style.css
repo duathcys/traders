@@ -199,3 +199,24 @@ html.framed body{background:#fff}
 .qn{display:block;font-size:15px;margin-bottom:4px}
 #toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,10px);background:rgba(25,28,27,.92);color:#fff;font-size:13px;padding:11px 18px;border-radius:24px;z-index:40;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- 인증 / 마이페이지 ---------- */
+.auth-brand{display:grid;place-items:center;padding:66px 0 48px}
+.auth-brand b{font-size:48px;letter-spacing:-.07em;font-weight:900;color:#222}
+.auth-brand b span{color:#ffb900}
+.auth-form{padding:0 22px}
+.auth-form label{display:block;margin-bottom:12px;color:#555;font-size:13px;font-weight:600}
+.auth-form input{display:block;width:100%;height:58px;margin-top:7px;border:1.5px solid #dedede;border-radius:30px;padding:0 20px;font:inherit;font-size:15px;outline:none;color:var(--txt);background:#fff}
+.auth-form input:focus{border-color:#888}
+.auth-form input::placeholder{color:#999}
+.auth-submit{width:100%;height:64px;margin-top:22px;border-radius:40px;background:#e8e8e8;color:#555;font-size:18px;font-weight:800}
+.auth-links{text-align:center;color:#888;font-size:13px;margin:30px 12px 0}
+.auth-links button{color:#666;padding:4px 8px;text-decoration:underline;font-weight:700}
+.auth-note{text-align:center;color:#999;font-size:11px;margin:48px 20px}
+.login{cursor:pointer}
+.account-top{padding:34px 22px;display:flex;align-items:center;gap:16px;background:#f7f7f7}
+.account-avatar{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:#e8e8e8;color:#999;font-size:28px}
+.account-top span,.account-top b{display:block}.account-top span{color:#777;font-size:13px;margin-bottom:4px}.account-top b{font-size:17px;overflow-wrap:anywhere}
+.account-stats{display:grid;grid-template-columns:repeat(3,1fr);padding:24px 12px;background:#f7f7f7;border-bottom:10px solid var(--bg);text-align:center}
+.account-stats div{color:#888;border-right:1px solid #ddd;font-size:13px}.account-stats div:last-child{border:0}.account-stats b{display:block;color:#222;font-size:17px;margin-top:6px}
+.account-section{padding:36px 20px}.account-section h2{font-size:20px;margin-bottom:18px}.account-section button{width:100%;height:68px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;text-align:left;font-size:15px;color:#555}.account-section button span{color:#888}

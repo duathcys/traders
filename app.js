@@ -4,6 +4,8 @@
 /* ---------- 설정 ---------- */
 const CANCEL_NOTICE = '예약 후 취소하시면 취소 수수료가 부과돼요.';
 const KEY = 'traders_cart_v1';
+const WAIT_KEY = 'traders_waitlist_v1';
+const AUTH_KEY = 'traders_auth_v1';
 
 /* price: 상품 전체 가격 / portions: 몇 인 소분인지 / left: 매장에 남은 소분 수 */
 const PRODUCTS = [
@@ -27,8 +29,11 @@ const byId = id => PRODUCTS.find(p => p.id === +id);
 
 function loadCart(){ try{ return JSON.parse(localStorage.getItem(KEY)) || []; }catch(e){ return []; } }
 function saveCart(){ try{ localStorage.setItem(KEY, JSON.stringify(state.cart)); }catch(e){} }
+function loadWaitlist(){ try{ return JSON.parse(localStorage.getItem(WAIT_KEY)) || []; }catch(e){ return []; } }
+function saveWaitlist(){ try{ localStorage.setItem(WAIT_KEY, JSON.stringify(state.waitlist)); }catch(e){} }
 
-const state = { view:'share-home', stack:[], tab:'전체', product:null, qty:1, cart:loadCart(), modal:null };
+const state = { view:'share-home', stack:[], tab:'전체', product:null, qty:1, cart:loadCart(), waitlist:loadWaitlist(), modal:null };
+try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
 const reserved = p => state.cart.filter(c => c.pid === p.id).reduce((a, c) => a + c.qty, 0);
 const remain = p => Math.max(0, p.left - reserved(p));
@@ -62,7 +67,7 @@ const shareTab = on => `<footer class="tab share">
   <a data-a="home-tab" class="${on==='home'?'on':''}">${ic('home')}<span>홈</span></a>
   <a data-a="cat-tab">${ic('grid')}<span>카테고리</span></a>
   <a class="${on==='share'?'on':''}">${ic('together')}<span>소분 예약</span></a>
-  <a data-a="exit">${ic('user')}<span>마이페이지</span></a></footer>`;
+  <a data-a="account">${ic('user')}<span>마이페이지</span></a></footer>`;
 
 /* ---------- 1. 홈 & 카테고리 ---------- */
 function vShareHome(){
@@ -117,7 +122,9 @@ function vDetail(){
     </div>
     <div class="note" style="margin:14px 0 0">ⓘ 예약하면 소분된 금액으로 장바구니에 담겨요. 당일 매장에서 QR로 수령해요.</div>
   </div>
-  <div class="cta"><button class="btn" data-a="ask-reserve" ${r<1?'disabled':''}>${r<1?'소분 마감':`소분 예약하기 · ${won(calc(p,q))}`}</button></div>`;
+  <div class="cta">${r<1
+    ? `<button class="btn" data-a="${state.waitlist.some(w=>w.pid===p.id)?'leave-wait':'join-wait'}" data-v="${p.id}">${state.waitlist.some(w=>w.pid===p.id)?'대기 취소하기':'소분 대기하기'}</button>`
+    : `<button class="btn" data-a="ask-reserve">소분 예약하기 · ${won(calc(p,q))}</button>`}</div>`;
 }
 
 /* ---------- 4. 장바구니 ---------- */
@@ -156,6 +163,45 @@ function vVisit(){
   <div class="cta"><button class="btn" data-a="cart">장바구니로 가기</button></div>`;
 }
 
+/* ---------- 로그인 / 회원가입 ---------- */
+function vAuth(signup = false){
+  return `${head(signup ? '회원가입' : '로그인', false)}
+  <div class="auth-brand"><b><span>e</span>mart</b></div>
+  <form class="auth-form" data-auth-form="${signup?'signup':'login'}">
+    ${signup ? '<label>이름<input name="name" autocomplete="name" placeholder="이름" required></label>' : ''}
+    <label>이메일<input name="email" type="email" autocomplete="email" placeholder="이메일 주소" required></label>
+    <label>비밀번호<input name="password" type="password" autocomplete="${signup?'new-password':'current-password'}" minlength="8" placeholder="비밀번호 (8자 이상)" required></label>
+    ${signup ? '<label>비밀번호 확인<input name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="비밀번호 확인" required></label>' : ''}
+    <button class="auth-submit" type="submit">${signup?'회원가입':'로그인'}</button>
+  </form>
+  <div class="auth-links">${signup ? '이미 계정이 있나요? <button data-a="login">로그인</button>' : '계정이 없나요? <button data-a="signup">통합 회원가입</button>'}</div>
+  <p class="auth-note">이메일과 비밀번호로 안전하게 로그인해요.</p>`;
+}
+function vAccount(){
+  const email = state.session?.user?.email || '';
+  return `${head('마이페이지', false)}
+  <div class="account-top"><div class="account-avatar">${ic('user')}</div><div><span>회원</span><b>${email}</b></div></div>
+  <div class="account-stats"><div>예약<b>${state.cart.length}건</b></div><div>대기<b>${state.waitlist.length}건</b></div><div>소분<b>${state.cart.reduce((n,c)=>n+c.qty,0)}개</b></div></div>
+  <div class="account-section"><h2>내 활동</h2><button data-a="cart">소분 예약 내역 <span>›</span></button><button data-a="share-home">소분 대기 내역 <span>${state.waitlist.length}건　›</span></button><button data-a="logout">로그아웃 <span>›</span></button></div>`;
+}
+async function submitAuth(form){
+  const cfg = window.TRADERS_SUPABASE || {};
+  if(!cfg.url || !cfg.anonKey){ toast('Supabase anon/publishable key를 설정해 주세요'); return; }
+  const data = new FormData(form), email = String(data.get('email')||'').trim(), password = String(data.get('password')||'');
+  const signup = form.dataset.authForm === 'signup';
+  if(signup && password !== data.get('passwordConfirm')){ toast('비밀번호가 서로 달라요'); return; }
+  const button = form.querySelector('[type="submit"]'); button.disabled = true; button.textContent = '처리 중…';
+  try {
+    const endpoint = signup ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password';
+    const response = await fetch(cfg.url.replace(/\/$/, '') + endpoint, {method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.anonKey},body:JSON.stringify(signup ? {email,password,data:{name:data.get('name')}} : {email,password})});
+    const result = await response.json();
+    if(!response.ok) throw new Error(result.msg || result.message || result.error_description || result.error || '인증에 실패했어요');
+    if(signup && !result.access_token){ toast('가입 확인 메일을 보냈어요. 이메일을 확인해 주세요.'); state.view='login'; render(); return; }
+    state.session = {access_token:result.access_token,refresh_token:result.refresh_token,user:result.user};
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state.session)); state.view='account'; render(); toast(signup?'회원가입이 완료됐어요':'로그인됐어요');
+  } catch(error){ toast(error.message || '요청을 처리하지 못했어요'); button.disabled=false; button.textContent=signup?'회원가입':'로그인'; }
+}
+
 /* ---------- 팝업 ---------- */
 function modalHTML(){
   const m = state.modal; if(!m) return '';
@@ -190,7 +236,7 @@ function modalHTML(){
 
 /* ---------- 렌더 & 이벤트 ---------- */
 function render(){
-  const v = {'share-home':vShareHome, list:vList, detail:vDetail, cart:vCart, visit:vVisit}[state.view];
+  const v = {'share-home':vShareHome, list:vList, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
   show('share');
@@ -199,6 +245,7 @@ function pick(id){ state.product = byId(id); state.qty = 1; }
 function newOid(){ return 'TS' + Date.now().toString(36).toUpperCase().slice(-5) + Math.floor(Math.random()*36).toString(36).toUpperCase(); }
 
 document.addEventListener('click', e => {
+  if(e.target.closest('[data-a="auth-entry"]')){ state.view=state.session?'account':'login'; render(); return; }
   if(e.target.closest('#go-tra')){ e.preventDefault(); state.stack = []; state.view = 'share-home'; render(); top0(); return; }
   const el = e.target.closest('[data-a]'); if(!el) return;
   if(el.dataset.a === 'overlay' && e.target !== el) return;     // 팝업 바깥(배경)을 눌렀을 때만 닫기
@@ -208,6 +255,11 @@ document.addEventListener('click', e => {
   switch(a){
     case 'back': back(); break;
     case 'exit': state.stack = []; state.modal = null; show('home'); break;
+    case 'login': state.view='login'; render(); break;
+    case 'signup': state.view='signup'; render(); break;
+    case 'account': state.view=state.session?'account':'login'; render(); break;
+    case 'share-home': state.view='share-home'; render(); break;
+    case 'logout': state.session=null; localStorage.removeItem(AUTH_KEY); state.view='share-home'; render(); toast('로그아웃했어요'); break;
     case 'home-tab': state.stack = []; go('share-home', false); break;
     case 'cat-tab': state.tab = '전체'; go('list'); break;
     case 'cat': if(el.dataset.on === 'true'){ state.tab = '전체'; go('list'); } else toast('준비 중이에요'); break;
@@ -216,6 +268,11 @@ document.addEventListener('click', e => {
     case 'qty-inc': state.qty = Math.min(remain(state.product), state.qty + 1); render(); break;
     case 'qty-dec': state.qty = Math.max(1, state.qty - 1); render(); break;
     case 'ask-reserve': state.modal = {type:'confirm'}; render(); break;
+    case 'join-wait':
+      if(!state.waitlist.some(w=>w.pid===+v)) state.waitlist.push({wid:newOid(),pid:+v,qty:1,createdAt:Date.now()});
+      saveWaitlist(); render(); toast('소분 대기에 등록됐어요'); break;
+    case 'leave-wait':
+      state.waitlist = state.waitlist.filter(w=>w.pid!==+v); saveWaitlist(); render(); toast('소분 대기가 취소됐어요'); break;
     case 'confirm-reserve': {
       const p = state.product, q = state.qty;
       if(q > remain(p)){ state.modal = null; render(); toast('남은 소분 수량이 부족해요'); break; }
@@ -226,10 +283,27 @@ document.addEventListener('click', e => {
     case 'shop': state.tab = '전체'; state.stack = ['share-home']; state.view = 'list'; render(); top0(); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
-    case 'confirm-cancel':
-      state.cart = state.cart.filter(c => c.oid !== state.modal.oid); saveCart();
-      state.modal = null; render(); toast('예약이 취소됐어요'); break;
+    case 'confirm-cancel': {
+      const cancelled = state.cart.find(c => c.oid === state.modal.oid);
+      state.cart = state.cart.filter(c => c.oid !== state.modal.oid);
+      let promoted = null;
+      if(cancelled){
+        const p = byId(cancelled.pid), available = remain(p);
+        const idx = state.waitlist.findIndex(w => w.pid === p.id && w.qty <= available);
+        if(idx >= 0){
+          promoted = state.waitlist.splice(idx,1)[0];
+          state.cart.push({oid:newOid(),pid:p.id,qty:promoted.qty,price:calc(p,promoted.qty)});
+        }
+      }
+      saveCart(); saveWaitlist(); state.modal = null; render();
+      toast(promoted ? '대기 중인 예약이 자동으로 확정됐어요' : '예약이 취소됐어요'); break;
+    }
     case 'close': case 'overlay': state.modal = null; render(); break;
     case 'visit': go('visit'); break;
   }
+});
+
+document.addEventListener('submit', e => {
+  const form = e.target.closest('[data-auth-form]'); if(!form) return;
+  e.preventDefault(); submitAuth(form);
 });
