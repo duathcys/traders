@@ -369,9 +369,8 @@ function vCart(){
         <button class="cancel" data-a="ask-cancel" data-v="${c.oid}">예약 취소</button></div></div>`;}).join('')}</div>
   <div class="sum"><div class="row"><span>예약 ${state.cart.length}건</span><span>소분 합계</span></div>
     <div class="row" style="margin-top:6px"><span class="mini">QR은 품목별로 발급돼요</span><b class="big">${won(cartTotal())}</b></div></div>
-  <button class="linkrow" data-a="visit">매장 소분 공간 안내 보기 ›</button>
   <p class="mini" style="padding:0 20px 10px">${CANCEL_NOTICE}</p>
-  <div class="cta"><button class="btn" data-a="shop">쇼핑 계속하기</button></div>`;
+  <div class="cta"><button class="btn" data-a="home-tab">쇼핑 계속하기</button></div>`;
 }
 
 /* ---------- 5. 매장 소분 공간 안내 ---------- */
@@ -433,7 +432,7 @@ function vAccount(){
   ${shareTab()}`;
 }
 function vReserve(){
-  return `${head('소분 예약',false)}
+  return `${head('소분 예약')}
   <section class="reserve-intro"><b>내 소분 예약</b><p>참여 중인 모집과 확정된 예약을 확인하세요.</p></section>
   <div class="reserve-shortcuts">
     <button data-a="reserve-section" data-v="pending-reservations">모집 참여 <b>${state.pending.length}건</b></button>
@@ -449,7 +448,7 @@ function vReserve(){
   <section class="reserve-section"><h2>확정된 예약</h2>
     ${state.cart.length?`<p class="mini">확정된 예약은 장바구니에서 QR과 함께 확인할 수 있어요.</p><button class="btn" data-a="cart">확정 예약 / QR 보기</button>`:'<p class="mini">확정된 예약이 없어요.</p>'}
   </section>
-  <button class="linkrow" data-a="shop">소분 상품 둘러보기 ›</button>
+  <button class="linkrow" data-a="home-tab">소분 상품 둘러보기 ›</button>
   ${shareTab()}`;
 }
 async function submitAuth(form){
