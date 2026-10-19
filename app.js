@@ -209,7 +209,7 @@ const shareTab = () => `<footer class="tab share">
 function vShareHome(){
   return `
   <div class="sh-top"><button class="back" data-a="exit" aria-label="트레이더스 홈">${ic('back')}</button>
-    <div class="brand">TRADERS <span>SHARE</span></div>${cartBtn()}</div>
+    <div class="brand">TRADERS <span>TOGETHER</span></div>${cartBtn()}</div>
   <button class="sh-search" data-a="search-open">${ic('search')}<span>상품명, 카테고리를 검색해보세요</span></button>
   <div class="hero"><div><b>필요한 만큼만,<br>소분 예약!</b><p>대용량 정육·수산을 원하는 만큼</p></div><div class="e">🥩</div></div>
   <div class="cats">${CATS.map(c=>`<button data-a="cat" data-v="${c[1]}" data-on="${c[2]}"><i>${ic(c[0])}</i>${c[1]}</button>`).join('')}</div>
