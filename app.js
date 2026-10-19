@@ -87,13 +87,16 @@ async function loadProducts(){
   FRESH_CATEGORIES=uniqueCategories(FRESH_PRODUCTS);
   MEAT_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='정육'));
   SEAFOOD_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='수산'));
-  render();
+  if(state.view!=='community') render();
   return PRODUCTS;
 }
 async function loadCommunity(){
   const rows=await dbRpc('list_product_suggestions',{});
   state.community=rows||[];
-  if(state.view==='community') render();
+  if(state.view==='community'){
+    const list=$('#community-suggestions');
+    if(list) list.innerHTML=communitySuggestionsHTML();
+  }
   return state.community;
 }
 async function submitSuggestion(form){
@@ -266,11 +269,14 @@ function vCommunity(){
     <button class="btn" type="submit">상품 추천하기</button>
   </form>
   <div class="community-list-head"><b>상품 추천 / 투표</b><button data-a="community-refresh">새로고침</button></div>
-  ${state.community.length?`<div class="community-list">${state.community.map((item,index)=>`<article class="suggestion-card">
+  <div id="community-suggestions">${communitySuggestionsHTML()}</div>
+  ${shareTab()}`;
+}
+function communitySuggestionsHTML(){
+  return state.community.length?`<div class="community-list">${state.community.map((item,index)=>`<article class="suggestion-card">
     <div class="suggestion-rank">${index+1}</div><div class="suggestion-body"><b>${escapeHtml(item.product_name)}</b>${item.details?`<p>${escapeHtml(item.details)}</p>`:''}<small>${new Date(item.created_at).toLocaleDateString('ko-KR')}</small></div>
     <button class="vote-btn ${item.voted_by_me?'voted':''}" data-a="suggestion-vote" data-v="${item.id}" aria-label="좋아요 투표">♥ <span>${item.vote_count||0}</span></button>
   </article>`).join('')}</div>`:'<div class="search-empty">아직 추천된 상품이 없어요.<br>첫 번째 상품을 추천해 보세요.</div>'}
-  ${shareTab()}`;
 }
 
 /* ---------- 3. 상세 & 소분 수량 선택 ---------- */
