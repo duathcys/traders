@@ -41,6 +41,15 @@ create table if not exists public.suggestion_votes (
   created_at timestamptz not null default now(),
   primary key(suggestion_id,user_id)
 );
+-- Demo popularity is kept separate from account-owned votes so sample data never
+-- impersonates real users. Keep this table private; the list RPC exposes only totals.
+create table if not exists public.community_demo_vote_counts (
+  suggestion_id uuid primary key references public.product_suggestions(id) on delete cascade,
+  vote_count integer not null default 0 check (vote_count >= 0)
+);
+alter table public.community_demo_vote_counts enable row level security;
+revoke all on public.community_demo_vote_counts from public, anon, authenticated;
+grant all on public.community_demo_vote_counts to service_role;
 alter table public.product_suggestions enable row level security;
 alter table public.suggestion_votes enable row level security;
 drop policy if exists "Anyone can read active suggestions" on public.product_suggestions;
@@ -60,13 +69,14 @@ grant select,insert,delete on public.suggestion_votes to authenticated;
 create or replace function public.list_product_suggestions()
 returns table(id uuid, product_name text, details text, created_at timestamptz, vote_count bigint, voted_by_me boolean)
 language sql stable security definer set search_path=public as $$
-  select s.id,s.product_name,s.details,s.created_at,count(v.user_id)::bigint,
+  select s.id,s.product_name,s.details,s.created_at,(count(v.user_id)+coalesce(max(d.vote_count),0))::bigint,
     coalesce(bool_or(v.user_id=auth.uid()),false)
   from public.product_suggestions s
   left join public.suggestion_votes v on v.suggestion_id=s.id
+  left join public.community_demo_vote_counts d on d.suggestion_id=s.id
   where s.status='active'
-  group by s.id
-  order by count(v.user_id) desc,s.created_at desc
+  group by s.id,d.vote_count
+  order by (count(v.user_id)+coalesce(max(d.vote_count),0)) desc,s.created_at desc
 $$;
 revoke all on function public.list_product_suggestions() from public;
 grant execute on function public.list_product_suggestions() to anon,authenticated;
