@@ -7,9 +7,10 @@ const PRODUCTS = [
   {id:3, type:'정육', name:'한우 불고기 1.0kg',     price:32800, orig:38800, unit:'100g당 3,280원', emoji:'🍖', cls:'beef'}
 ];
 const CATS = [
-  ['🥬','신선식품'],['🥩','정육/수산'],['🍱','가공식품'],['❄️','냉동식품'],
-  ['🥐','베이커리'],['🥤','음료/주류'],['🧴','생활용품'],['🐶','반려동물']
+  ['leaf','신선식품'],['meat','정육/수산'],['bowl','가공식품'],['snow','냉동식품'],
+  ['bread','베이커리'],['drink','음료/주류'],['soap','생활용품'],['paw','반려동물']
 ];
+const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 // 공동구매 할인 구간 (인원 → 할인율)
 const TIERS = [[2,10],[4,15],[6,20],[8,26]];
 const DATES = ['10.26 (월)','10.27 (화)','10.28 (수)'];
@@ -38,23 +39,23 @@ function back(){
 
 /* ---------- 공통 조각 ---------- */
 const head = (title, withBack=true) => `
-  <div class="sh-top">${withBack?'<button class="back" data-a="back" aria-label="뒤로">‹</button>':''}
+  <div class="sh-top">${withBack?`<button class="back" data-a="back" aria-label="뒤로">${ic('back')}</button>`:''}
   <h1>${title}</h1></div>`;
 const bar = n => `<div class="stepbar">${[1,2,3,4,5].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div>`;
 const shareTab = on => `<footer class="tab share">
-  <a data-a="home-tab" class="${on==='home'?'on':''}">🏠<span>홈</span></a>
-  <a data-a="cat-tab"><span style="font-size:18px">▦</span><span>카테고리</span></a>
-  <a class="${on==='share'?'on':''}">🤝<span>소분/공동구매</span></a>
-  <a data-a="exit">👤<span>마이페이지</span></a></footer>`;
+  <a data-a="home-tab" class="${on==='home'?'on':''}">${ic('home')}<span>홈</span></a>
+  <a data-a="cat-tab">${ic('grid')}<span>카테고리</span></a>
+  <a class="${on==='share'?'on':''}">${ic('together')}<span>소분/공동구매</span></a>
+  <a data-a="exit">${ic('user')}<span>마이페이지</span></a></footer>`;
 
 /* ---------- 1. 홈 & 카테고리 ---------- */
 function vShareHome(){
   return `
-  <div class="sh-top"><button class="back" data-a="exit" aria-label="트레이더스 홈">‹</button>
+  <div class="sh-top"><button class="back" data-a="exit" aria-label="트레이더스 홈">${ic('back')}</button>
     <div class="brand">TRADERS <span>SHARE</span></div></div>
   <div class="sh-search">상품명, 카테고리를 검색해보세요</div>
   <div class="hero"><div><b>지금, 함께 구매하면<br>더 좋은 혜택!</b><p>공동구매로 더 큰 할인을!</p></div><div class="e">🥩</div></div>
-  <div class="cats">${CATS.map(c=>`<button data-a="cat" data-v="${c[1]}"><i>${c[0]}</i>${c[1]}</button>`).join('')}</div>
+  <div class="cats">${CATS.map(c=>`<button data-a="cat" data-v="${c[1]}"><i>${ic(c[0])}</i>${c[1]}</button>`).join('')}</div>
   <div class="sec-t">지금 많이 찾는 상품</div>
   <div class="pop">${PRODUCTS.filter(p=>p.id<3).map(p=>`
     <button data-a="detail" data-v="${p.id}"><div class="im ${p.cls}">${p.emoji}</div>
@@ -91,7 +92,7 @@ function vDetail(){
     <h2>${p.name}</h2>
     <div class="d-price">${won(p.price)} <span class="off">${pct}% 할인</span></div>
     <div class="mini">(${p.unit})</div>
-    <div class="chips"><span>👥 소분 가능</span><span>최소 2인</span><span>최대 8인</span></div>
+    <div class="chips"><span>소분 가능</span><span>최소 2인</span><span>최대 8인</span></div>
 
     <div class="box"><h3>공동구매 할인 혜택</h3>
       <div class="bar"><div class="fill" style="width:${fill}%"></div>
@@ -126,11 +127,11 @@ function vReserve(){
 function vVisit(){
   const p = state.product;
   return `${head('매장 내 소분 공간 안내')}
-  <div class="done"><b>예약이 완료되었어요 ✔</b><br>${p.name} · ${state.people}인<br>${state.date} ${state.time} 방문</div>
+  <div class="done"><b>${ic('check')} 예약이 완료되었어요</b><br>${p.name} · ${state.people}인<br>${state.date} ${state.time} 방문</div>
   <div class="zone"><div>소분 Zone<small>함께 나누는 더 든든한 장보기</small></div></div>
   <div class="eq">
-    <div><i>🏠</i>작업대<br>소분 작업 공간</div><div><i>⚖️</i>전자저울<br>정확한 중량 측정</div>
-    <div><i>🧰</i>포장 용기<br>개별 포장 제공</div><div><i>🏷️</i>라벨 출력기<br>상품명·소분일자 표시</div></div>
+    <div><i>${ic('bench')}</i>작업대<br>소분 작업 공간</div><div><i>${ic('scale')}</i>전자저울<br>정확한 중량 측정</div>
+    <div><i>${ic('box')}</i>포장 용기<br>개별 포장 제공</div><div><i>${ic('print')}</i>라벨 출력기<br>상품명·소분일자 표시</div></div>
   <div class="how"><h4>이렇게 운영돼요</h4><ul>
     <li><b>1</b>예약 시간에 매장 방문</li><li><b>2</b>소분 공간에서 상품 나누기</li><li><b>3</b>개별 포장 후 수령</li></ul></div>
   <div style="padding:0 16px"><button class="btn" data-a="zone-map">매장 소분 공간 위치 보기</button>
