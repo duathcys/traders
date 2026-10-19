@@ -91,7 +91,7 @@ async function loadProducts(){
   FRESH_CATEGORIES=uniqueCategories(FRESH_PRODUCTS);
   MEAT_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='정육'));
   SEAFOOD_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='수산'));
-  if(!['community','root-home'].includes(state.view)) render();
+  if(!state.modal&&!['community','root-home'].includes(state.view)) render();
   return PRODUCTS;
 }
 async function loadCommunity(){
@@ -160,7 +160,7 @@ async function syncSharedData({quiet=false}={}){
   if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
-  if(['detail','categories','fresh-list','meat-list','search','reserve','cart','account'].includes(state.view)) render();
+  if(!state.modal&&['detail','categories','fresh-list','meat-list','search','reserve','cart','account'].includes(state.view)) render();
 }
 
 function toast(msg){
