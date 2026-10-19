@@ -26,6 +26,51 @@ drop policy if exists "Anyone can read active products" on public.products;
 create policy "Anyone can read active products" on public.products for select to anon, authenticated using (is_active);
 grant select on public.products to anon, authenticated;
 
+create table if not exists public.product_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  product_name text not null check (char_length(product_name) between 1 and 100),
+  details text not null default '' check (char_length(details) <= 240),
+  status text not null default 'active' check (status in ('active','hidden')),
+  created_at timestamptz not null default now()
+);
+create index if not exists product_suggestions_status_created on public.product_suggestions(status,created_at desc);
+create table if not exists public.suggestion_votes (
+  suggestion_id uuid not null references public.product_suggestions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key(suggestion_id,user_id)
+);
+alter table public.product_suggestions enable row level security;
+alter table public.suggestion_votes enable row level security;
+drop policy if exists "Anyone can read active suggestions" on public.product_suggestions;
+create policy "Anyone can read active suggestions" on public.product_suggestions for select to anon, authenticated using (status='active');
+drop policy if exists "Users can suggest products" on public.product_suggestions;
+create policy "Users can suggest products" on public.product_suggestions for insert to authenticated with check (user_id=auth.uid());
+drop policy if exists "Users can read own votes" on public.suggestion_votes;
+create policy "Users can read own votes" on public.suggestion_votes for select to authenticated using (user_id=auth.uid());
+drop policy if exists "Users can vote as themselves" on public.suggestion_votes;
+create policy "Users can vote as themselves" on public.suggestion_votes for insert to authenticated with check (user_id=auth.uid());
+drop policy if exists "Users can remove own votes" on public.suggestion_votes;
+create policy "Users can remove own votes" on public.suggestion_votes for delete to authenticated using (user_id=auth.uid());
+grant select,insert on public.product_suggestions to authenticated;
+grant select on public.product_suggestions to anon;
+grant select,insert,delete on public.suggestion_votes to authenticated;
+
+create or replace function public.list_product_suggestions()
+returns table(id uuid, product_name text, details text, created_at timestamptz, vote_count bigint, voted_by_me boolean)
+language sql stable security definer set search_path=public as $$
+  select s.id,s.product_name,s.details,s.created_at,count(v.user_id)::bigint,
+    coalesce(bool_or(v.user_id=auth.uid()),false)
+  from public.product_suggestions s
+  left join public.suggestion_votes v on v.suggestion_id=s.id
+  where s.status='active'
+  group by s.id
+  order by count(v.user_id) desc,s.created_at desc
+$$;
+revoke all on function public.list_product_suggestions() from public;
+grant execute on function public.list_product_suggestions() to anon,authenticated;
+
 create table if not exists public.share_rounds (
   id uuid primary key default gen_random_uuid(),
   product_id integer not null,

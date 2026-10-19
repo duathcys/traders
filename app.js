@@ -44,7 +44,7 @@ const unitPrice = p => Math.round(p.price / p.portions);                 // 1소
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
 const byId = id => PRODUCTS.find(p => p.id === +id);
 
-const state = { view:'share-home', stack:[], tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], modal:null };
+const state = { view:'share-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
 function syncHomeAuth(){
@@ -90,6 +90,31 @@ async function loadProducts(){
   render();
   return PRODUCTS;
 }
+async function loadCommunity(){
+  const rows=await dbRpc('list_product_suggestions',{});
+  state.community=rows||[];
+  if(state.view==='community') render();
+  return state.community;
+}
+async function submitSuggestion(form){
+  if(!requireLogin()) return;
+  const data=new FormData(form), productName=String(data.get('product_name')||'').trim(), details=String(data.get('details')||'').trim();
+  if(!productName) return toast('추천할 상품명을 입력해 주세요');
+  try{
+    await dbRequest('product_suggestions',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:state.session.user.id,product_name:productName,details})});
+    form.reset();await loadCommunity();toast('상품 추천을 등록했어요');
+  }catch(error){toast(error.message||'상품 추천을 등록하지 못했어요');}
+}
+async function toggleSuggestionVote(id){
+  if(!requireLogin()) return;
+  const item=state.community.find(x=>x.id===id);if(!item)return;
+  try{
+    const uid=encodeURIComponent(state.session.user.id), sid=encodeURIComponent(id);
+    if(item.voted_by_me) await dbRequest(`suggestion_votes?suggestion_id=eq.${sid}&user_id=eq.${uid}`,{method:'DELETE'});
+    else await dbRequest('suggestion_votes',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({suggestion_id:id,user_id:state.session.user.id})});
+    await loadCommunity();
+  }catch(error){toast(error.message||'투표를 반영하지 못했어요');}
+}
 async function syncSharedData({quiet=false}={}){
   const roundsPromise=dbRequest('share_round_progress?select=*&order=created_at.desc');
   const ownPromise=state.session?Promise.all([
@@ -128,8 +153,11 @@ function top0(){ document.querySelectorAll('.screen').forEach(e => e.scrollTop =
 function show(name){ $('#s-home').classList.toggle('active', name === 'home'); $('#s-share').classList.toggle('active', name !== 'home'); }
 function go(view, push = true){ if(push) state.stack.push(state.view); state.view = view; render(); top0(); }
 function back(){
-  if(state.stack.length){ state.view = state.stack.pop(); render(); }
-  else { show('home'); state.view = 'share-home'; }
+  if(state.stack.length){
+    state.view = state.stack.pop();
+    if(state.view==='share-home'&&!state.navTab) state.navTab='home';
+    render();
+  }else{ state.navTab='home';show('home');state.view='share-home'; }
   top0();
 }
 
@@ -138,11 +166,11 @@ const cartBtn = () => `<button class="cart-btn" data-a="cart" aria-label="장바
 const head = (title, withCart = true) => `
   <div class="sh-top"><button class="back" data-a="back" aria-label="뒤로">${ic('back')}</button>
   <h1>${title}</h1>${withCart ? cartBtn() : ''}</div>`;
-const shareTab = on => `<footer class="tab share">
-  <a data-a="home-tab" class="${on==='home'?'on':''}">${ic('home')}<span>홈</span></a>
-  <a data-a="cat-tab">${ic('grid')}<span>카테고리</span></a>
-  <a data-a="home-tab" class="${on==='share'?'on':''}">${ic('together')}<span>소분 예약</span></a>
-  <a data-a="account">${ic('user')}<span>마이페이지</span></a></footer>`;
+const shareTab = () => `<footer class="tab share">
+  <a data-a="home-tab" class="${state.navTab==='home'?'on':''}">${ic('home')}<span>홈</span></a>
+  <a data-a="community-tab" class="${state.navTab==='community'?'on':''}">${ic('together')}<span>커뮤니티</span></a>
+  <a data-a="reserve-tab" class="${state.navTab==='reserve'?'on':''}">${ic('grid')}<span>소분 예약</span></a>
+  <a data-a="account-tab" class="${state.navTab==='account'?'on':''}">${ic('user')}<span>마이페이지</span></a></footer>`;
 
 /* ---------- 1. 홈 & 카테고리 ---------- */
 function vShareHome(){
@@ -226,6 +254,23 @@ function vSearch(){
   </form>
   <div id="search-results">${searchResultsHTML(q)}</div>
   ${shareTab('share')}`;
+}
+
+function vCommunity(){
+  return `${head('커뮤니티',false)}
+  <section class="community-intro"><b>같이 소분하고 싶은 상품을 추천해 주세요</b><p>추천하고 좋아요를 눌러 다음 소분 상품을 함께 골라요.</p></section>
+  <form class="community-form" data-community-form>
+    <label for="suggestion-name">소분하고 싶은 상품</label>
+    <input id="suggestion-name" name="product_name" maxlength="100" placeholder="예: 대용량 견과류 세트" required>
+    <textarea name="details" maxlength="240" rows="2" placeholder="상품 정보나 추천 이유를 적어주세요 (선택)"></textarea>
+    <button class="btn" type="submit">상품 추천하기</button>
+  </form>
+  <div class="community-list-head"><b>상품 추천 / 투표</b><button data-a="community-refresh">새로고침</button></div>
+  ${state.community.length?`<div class="community-list">${state.community.map((item,index)=>`<article class="suggestion-card">
+    <div class="suggestion-rank">${index+1}</div><div class="suggestion-body"><b>${escapeHtml(item.product_name)}</b>${item.details?`<p>${escapeHtml(item.details)}</p>`:''}<small>${new Date(item.created_at).toLocaleDateString('ko-KR')}</small></div>
+    <button class="vote-btn ${item.voted_by_me?'voted':''}" data-a="suggestion-vote" data-v="${item.id}" aria-label="좋아요 투표">♥ <span>${item.vote_count||0}</span></button>
+  </article>`).join('')}</div>`:'<div class="search-empty">아직 추천된 상품이 없어요.<br>첫 번째 상품을 추천해 보세요.</div>'}
+  ${shareTab()}`;
 }
 
 /* ---------- 3. 상세 & 소분 수량 선택 ---------- */
@@ -382,7 +427,7 @@ function modalHTML(){
 
 /* ---------- 렌더 & 이벤트 ---------- */
 function render(){
-  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, search:vSearch, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
+  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, search:vSearch, community:vCommunity, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
   syncHomeAuth();
@@ -437,7 +482,7 @@ async function cancelSharedOrder(){
 }
 
 document.addEventListener('click', e => {
-  if(e.target.closest('[data-a="auth-entry"]')){ state.view=state.session?'account':'login'; render(); return; }
+  if(e.target.closest('[data-a="auth-entry"]')){ state.navTab='account';state.view=state.session?'account':'login'; render(); return; }
   if(e.target.closest('#go-tra')){ e.preventDefault(); state.stack = []; state.view = 'share-home'; render(); top0(); return; }
   const el = e.target.closest('[data-a]'); if(!el) return;
   if(el.dataset.a === 'overlay' && e.target !== el) return;     // 팝업 바깥(배경)을 눌렀을 때만 닫기
@@ -449,14 +494,15 @@ document.addEventListener('click', e => {
     case 'exit': state.stack = []; state.modal = null; syncHomeAuth(); show('home'); break;
     case 'login': state.view='login'; render(); break;
     case 'signup': state.view='signup'; render(); break;
-    case 'account': state.view=state.session?'account':'login'; render(); break;
-    case 'share-home': state.view='share-home'; render(); break;
-    case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.view='share-home'; render(); toast('로그아웃했어요'); break;
-    case 'home-tab': state.stack = []; go('share-home', false); break;
-    case 'cat-tab': go('categories'); break;
+    case 'account': case 'account-tab': state.navTab='account';state.view=state.session?'account':'login'; render(); break;
+    case 'share-home': state.navTab='home';state.view='share-home'; render(); break;
+    case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.navTab='home';state.view='share-home'; render(); toast('로그아웃했어요'); break;
+    case 'home-tab': state.navTab='home';state.stack = []; go('share-home', false); break;
+    case 'reserve-tab': state.navTab='reserve';state.stack=[];state.view='share-home';render();top0();break;
+    case 'community-tab': state.navTab='community';state.stack=[];state.view='community';render();loadCommunity().catch(error=>toast(error.message||'커뮤니티를 불러오지 못했어요'));top0();break;
     case 'cat':
       if(el.dataset.on !== 'true'){ toast('준비 중이에요'); break; }
-      state.tab='전체'; go(v==='신선식품'?'fresh-list':'meat-list'); break;
+      state.navTab='';state.tab='전체'; go(v==='신선식품'?'fresh-list':'meat-list'); break;
     case 'search-open': state.searchQuery=''; go('search'); $('#product-search-input')?.focus(); break;
     case 'search-clear': state.searchQuery=''; render(); $('#product-search-input')?.focus(); break;
     case 'tab': state.tab = v; state.productCategory='전체'; render(); break;
@@ -471,7 +517,9 @@ document.addEventListener('click', e => {
     case 'start-round': startNewRound(); break;
     case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
-    case 'shop': state.tab = '전체'; state.stack = ['share-home']; state.view = 'categories'; render(); top0(); break;
+    case 'shop': state.navTab='';state.tab = '전체'; state.stack = ['share-home']; state.view = 'categories'; render(); top0(); break;
+    case 'community-refresh': loadCommunity().catch(error=>toast(error.message||'목록을 새로고침하지 못했어요')); break;
+    case 'suggestion-vote': toggleSuggestionVote(v); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
     case 'confirm-cancel': cancelSharedOrder(); break;
@@ -481,6 +529,8 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('submit', e => {
+  const communityForm=e.target.closest('[data-community-form]');
+  if(communityForm){e.preventDefault();submitSuggestion(communityForm);return;}
   const searchForm=e.target.closest('[data-search-form]');
   if(searchForm){ e.preventDefault(); return; }
   const form = e.target.closest('[data-auth-form]'); if(!form) return;
@@ -496,9 +546,13 @@ document.addEventListener('input', e=>{
 // 상품 목록은 Supabase products 테이블을 단일 기준으로 사용합니다.
 loadProducts().then(()=>syncSharedData({quiet:true})).catch(error=>toast('상품 DB를 불러오지 못했어요. supabase-setup.sql을 적용해 주세요.'));
 setInterval(()=>{
-  if(document.visibilityState==='visible') syncSharedData().catch(()=>{});
+  if(document.visibilityState==='visible'){
+    syncSharedData().catch(()=>{});
+    if(state.view==='community') loadCommunity().catch(()=>{});
+  }
 },7000);
 window.addEventListener('focus',()=>{
   loadProducts().catch(()=>{});
   syncSharedData({quiet:true}).catch(()=>{});
+  if(state.view==='community') loadCommunity().catch(()=>{});
 });

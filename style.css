@@ -75,6 +75,16 @@ body{overflow:hidden}
 .product-search button[hidden]{display:none}
 .search-empty{text-align:center;padding:72px 20px;color:var(--sub);font-size:13px;line-height:1.8}
 .search-empty span{font-size:11px}
+.community-intro{padding:20px 18px 14px;background:var(--bg);margin-bottom:16px}
+.community-intro b{font-size:16px}.community-intro p{font-size:12px;color:var(--sub);margin-top:5px}
+.community-form{margin:0 16px 22px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff;display:grid;gap:9px}
+.community-form label{font-size:13px;font-weight:700}.community-form input,.community-form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:13px;resize:vertical;outline:0}
+.community-form input:focus,.community-form textarea:focus{border-color:var(--g2)}.community-form .btn{padding:12px;font-size:14px}
+.community-list-head{display:flex;justify-content:space-between;align-items:center;padding:4px 18px 12px}.community-list-head b{font-size:15px}.community-list-head button{font-size:12px;color:var(--g);font-weight:700}
+.community-list{padding:0 16px 18px;display:grid;gap:10px}.suggestion-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.suggestion-rank{width:28px;height:28px;border-radius:50%;background:var(--g3);color:var(--g);display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+.suggestion-body{min-width:0;flex:1}.suggestion-body b{font-size:13px}.suggestion-body p{font-size:12px;color:#666;margin-top:4px;line-height:1.45}.suggestion-body small{display:block;font-size:10px;color:var(--sub);margin-top:5px}
+.vote-btn{min-width:52px;padding:8px;border:1px solid var(--line);border-radius:18px;color:#888;font-size:13px;font-weight:700;flex:none}.vote-btn.voted{color:var(--red);border-color:#f2c9c5;background:#fff7f6}
 .hero{margin:0 16px 22px;background:linear-gradient(125deg,#0d3b2a,#6e2020);border-radius:18px;padding:22px 22px;color:#fff;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);overflow:hidden;position:relative}
 .hero b{font-size:19px;line-height:1.32;display:block;font-weight:700;letter-spacing:-.04em}
 .hero p{font-size:12px;opacity:.8;margin-top:8px;font-weight:400}
