@@ -1,4 +1,4 @@
-:root{--g:#0e5a3d;--g2:#1b7f56;--g3:#e8f3ed;--lime:#c9ea72;--bg:#f5f6f6;--line:#ebedec;--red:#e8453a;--txt:#16181a;--sub:#8b9290;--blue:#2d6cdf;--shadow:0 6px 20px -8px rgba(15,40,30,.18)}
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--g:#0e5a3d;--g2:#1b7f56;--g3:#e8f3ed;--lime:#c9ea72;--bg:#f5f6f6;--line:#ebedec;--red:#e8453a;--txt:#16181a;--sub:#8b9290;--blue:#2d6cdf;--shadow:0 6px 20px -8px rgba(15,40,30,.18)}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:#e8ebea;font-family:"Pretendard","Noto Sans KR",-apple-system,"Apple SD Gothic Neo",sans-serif;color:var(--txt);display:flex;justify-content:center;letter-spacing:-.02em;-webkit-font-smoothing:antialiased}
 button{font:inherit;letter-spacing:inherit;border:0;background:none;cursor:pointer;color:inherit}
@@ -10,7 +10,7 @@ a{color:inherit;text-decoration:none;cursor:pointer}
 @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ---------- 홈 (원본 유지) ---------- */
-.top{display:flex;justify-content:space-between;align-items:center;padding:calc(14px + env(safe-area-inset-top,0px)) 20px 6px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:calc(14px + var(--sat)) 20px 6px}
 .logo{font-weight:900;font-size:26px;letter-spacing:-.04em;display:flex;align-items:center;gap:6px}
 .chev{font-weight:400;font-size:13px;border:1.4px solid #222;border-radius:50%;width:22px;height:22px;display:grid;place-items:center;line-height:1}
 .icon-btn{font-size:26px;width:36px;height:36px;display:grid;place-items:center}
@@ -46,7 +46,7 @@ a{color:inherit;text-decoration:none;cursor:pointer}
 .thumb{width:128px;height:108px;border-radius:14px;background:#f1efe9;display:grid;place-items:center;font-size:52px;flex:none}
 .story b{font-size:14px;line-height:1.4;font-weight:700}
 .story p{font-size:12px;color:#6a706e;margin-top:6px;line-height:1.5}
-.tab{position:fixed;bottom:0;width:100%;max-width:430px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+.tab{position:fixed;bottom:0;width:100%;max-width:430px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + var(--sab));z-index:5}
 .tab a{display:flex;flex-direction:column;align-items:center;font-size:10.5px;font-weight:500;color:#9aa19e;gap:3px;font-size:22px}
 .tab a span{font-size:10.5px}
 .tab .pay i{background:#ffd93b;color:#222;font-style:normal;font-weight:700;border-radius:50%;width:62px;height:62px;display:grid;place-items:center;margin-top:-32px;font-size:12px;box-shadow:0 8px 18px -6px rgba(255,190,0,.7)}
@@ -55,7 +55,7 @@ a{color:inherit;text-decoration:none;cursor:pointer}
 .tab.share a.on span{font-weight:700}
 
 /* ---------- 트레더 (TRADERS SHARE) ---------- */
-.sh-top{display:flex;align-items:center;gap:6px;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;position:sticky;top:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);z-index:4}
+.sh-top{display:flex;align-items:center;gap:6px;padding:calc(12px + var(--sat)) 14px 12px;position:sticky;top:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);z-index:4}
 .sh-top h1{font-size:17px;font-weight:700;flex:1;letter-spacing:-.03em}
 .sh-top .back{font-size:24px;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;transition:background .15s}
 .sh-top .back:active{background:var(--bg)}
@@ -98,7 +98,7 @@ a{color:inherit;text-decoration:none;cursor:pointer}
 .btn{display:block;width:100%;background:linear-gradient(135deg,#0e5a3d,#17744f);color:#fff;border-radius:14px;padding:16px;font-weight:700;font-size:15px;text-align:center;box-shadow:0 10px 20px -10px rgba(14,90,61,.7);transition:transform .15s}
 .btn:active{transform:scale(.98)}
 .btn.sm{padding:10px;font-size:12.5px;margin-top:8px;border-radius:10px;box-shadow:none}
-.cta{position:fixed;bottom:0;width:100%;max-width:430px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);z-index:5}
+.cta{position:fixed;bottom:0;width:100%;max-width:430px;padding:12px 16px calc(12px + var(--sab));background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);z-index:5}
 .d-img{height:250px;font-size:104px;position:relative}
 .d-img .tag{position:absolute;right:14px;bottom:14px;font-size:11.5px;padding:5px 11px;border-radius:20px}
 .d-body{padding:20px 16px}
@@ -146,3 +146,7 @@ a{color:inherit;text-decoration:none;cursor:pointer}
 .how h4{margin-bottom:10px;font-weight:700}
 .how li{list-style:none;display:flex;gap:10px;align-items:center;padding:6px 0}
 .how li b{width:20px;height:20px;border-radius:50%;background:var(--g);color:#fff;font-size:11px;display:grid;place-items:center;flex:none}
+
+/* 아이폰 프레임 미리보기(?frame=1)일 때 다이내믹 아일랜드/홈바 영역 확보 */
+html.framed{--sat:54px;--sab:26px}
+html.framed body{background:#fff}
