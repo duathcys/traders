@@ -110,7 +110,7 @@ const unitPrice = p => Math.round(p.price / p.portions);                 // 1소
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
 const byId = id => PRODUCTS.find(p => +p.id === +id);
 
-const state = { view:'root-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
+const state = { view:'root-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], issued:[], completed:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
 let communityLoadVersion=0;
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
@@ -124,7 +124,7 @@ syncHomeAuth();
 const currentRound = p => p.price && !p.availability ? state.rounds.find(r => +r.product_id === p.id && r.status === 'open') : null;
 const latestRound = p => state.rounds.find(r => +r.product_id === p.id);
 const remain = p => { const r=currentRound(p); return r ? Math.max(0, r.group_size-r.joined_qty) : 0; };
-const cartTotal = () => state.cart.reduce((a, c) => a + c.price, 0);
+const cartTotal = () => [...state.cart,...state.issued].reduce((a, c) => a + c.price, 0);
 const cancellationFee = amount => Math.min(CANCEL_FEE_MAX, Math.max(CANCEL_FEE_MIN, Math.round(amount * CANCEL_FEE_RATE)));
 
 function authHeaders(){
@@ -208,17 +208,22 @@ async function syncSharedData({quiet=false}={}){
   const ownPromise=state.session?Promise.all([
     dbRequest('share_orders?select=*&status=eq.confirmed&order=created_at.desc'),
     dbRequest('share_orders?select=*&status=eq.pending&order=created_at.desc'),
+    dbRequest('share_orders?select=*&status=eq.barcode_issued'),
+    dbRequest('share_orders?select=*&status=eq.completed'),
     dbRequest('share_waitlist?select=*&status=eq.waiting&order=created_at.asc')
-  ]):Promise.resolve([[],[],[]]);
+  ]):Promise.resolve([[],[],[],[],[]]);
   const [rounds,own]=await Promise.all([roundsPromise,ownPromise]);
   const wasPending=new Set(state.pending.map(x=>x.oid));
   state.rounds=rounds||[];
   // A confirmed order is eligible for QR only if its cohort itself is filled.
   // This prevents stale or inconsistent order status from exposing a pickup QR.
   const filledRoundIds=new Set((rounds||[]).filter(r=>r.status==='filled'&&Number(r.joined_qty)>=Number(r.group_size)).map(r=>r.id));
-  state.cart=(own[0]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
+  const orderView=x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at,barcodeIssuedAt:x.barcode_issued_at,completedAt:x.completed_at});
+  state.cart=(own[0]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(orderView);
   state.pending=(own[1]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
-  state.waitlist=(own[2]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
+  state.issued=(own[2]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(orderView);
+  state.completed=(own[3]||[]).map(orderView);
+  state.waitlist=(own[4]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
   const newlyConfirmed=state.cart.some(x=>wasPending.has(x.oid));
   const newlyPromoted=state.pending.some(x=>!wasPending.has(x.oid));
   if(!quiet&&newlyConfirmed){
@@ -266,7 +271,7 @@ function navigateTab(view,tab){
 }
 
 /* ---------- 공통 조각 ---------- */
-const cartBtn = () => `<button class="cart-btn" data-a="cart" aria-label="장바구니">${ic('cart')}${state.cart.length ? `<em>${state.cart.length}</em>` : ''}</button>`;
+const cartBtn = () => {const count=state.cart.length+state.issued.length;return `<button class="cart-btn" data-a="cart" aria-label="장바구니">${ic('cart')}${count ? `<em>${count}</em>` : ''}</button>`;};
 const head = (title, withCart = true) => `
   <div class="sh-top"><button class="back" data-a="back" aria-label="뒤로">${ic('back')}</button>
   <h1>${title}</h1>${withCart ? cartBtn() : ''}</div>`;
@@ -422,22 +427,23 @@ function vDetail(){
 
 /* ---------- 4. 장바구니 ---------- */
 function vCart(){
-  if(!state.cart.length) return `${head('장바구니', false)}
-    <div class="empty"><i>${ic('cart')}</i><b>확정된 예약이 없어요</b><p>소분 모집이 완료되면 장바구니와 QR이 생성돼요.</p>
+  const orders=[...state.cart.map(c=>({...c,orderState:'confirmed'})),...state.issued.map(c=>({...c,orderState:'barcode_issued'}))];
+  if(!orders.length) return `${head('장바구니', false)}
+    <div class="empty"><i>${ic('cart')}</i><b>진행 중인 예약이 없어요</b><p>소분 모집이 완료되면 장바구니와 QR이 생성돼요.</p>
     <button class="btn" style="max-width:220px;margin:18px auto 0" data-a="shop">소분 상품 보러가기</button></div>`;
   return `${head('장바구니', false)}
-  <div class="cart-list">${state.cart.map(c=>{
+  <div class="cart-list">${orders.map(c=>{
     const p = byId(c.pid);
     return `<div class="c-item">
       <div class="c-top"><div class="r-img ${p.cls}">${productVisual(p)}</div>
         <div class="c-info"><b>${p.name}</b>
-          <span class="mini">${p.portions}인 소분 중 ${c.qty}소분 · 오늘 방문</span>
+          <span class="mini">${p.portions}인 소분 중 ${c.qty}소분 · ${c.orderState==='barcode_issued'?'바코드 발급 완료':'오늘 방문'}</span>
           <span class="mini">예약번호 ${c.oid}</span>
           <div class="c-price">${won(c.price)}</div></div></div>
-      <div class="c-btns"><button class="qrb" data-a="qr" data-v="${c.oid}">${ic('qr')}QR 보기</button>
-        <button class="cancel" data-a="ask-cancel" data-v="${c.oid}">예약 취소</button></div></div>`;}).join('')}</div>
-  <div class="sum"><div class="row"><span>예약 ${state.cart.length}건</span><span>소분 합계</span></div>
-    <div class="row" style="margin-top:6px"><span class="mini">QR은 품목별로 발급돼요</span><b class="big">${won(cartTotal())}</b></div></div>
+      ${c.orderState==='barcode_issued'?`<p class="pickup-status">바코드 발급 완료 · 결제 후 수령을 완료해 주세요.</p><div class="c-btns"><button class="qrb" data-a="ask-complete" data-v="${c.oid}">수령 완료 처리</button></div>`:`<div class="c-btns"><button class="qrb" data-a="qr" data-v="${c.oid}">${ic('qr')}QR 보기</button>
+        <button class="cancel" data-a="ask-cancel" data-v="${c.oid}">예약 취소</button></div>`}</div>`;}).join('')}</div>
+  <div class="sum"><div class="row"><span>진행 중 예약 ${orders.length}건</span><span>소분 합계</span></div>
+    <div class="row" style="margin-top:6px"><span class="mini">QR 사용 후에는 다시 사용할 수 없어요</span><b class="big">${won(cartTotal())}</b></div></div>
   <p class="mini" style="padding:0 20px 10px">${CANCEL_NOTICE}</p>
   <div class="cta"><button class="btn" data-a="home-tab">쇼핑 계속하기</button></div>`;
 }
@@ -506,7 +512,7 @@ function vReserve(){
   <div class="reserve-shortcuts">
     <button data-a="reserve-section" data-v="pending-reservations">모집 참여 <b>${state.pending.length}건</b></button>
     <button data-a="reserve-section" data-v="waitlist-reservations">마감 대기 <b>${state.waitlist.length}건</b></button>
-    <button data-a="cart">확정 예약 <b>${state.cart.length}건</b></button>
+    <button data-a="cart">진행 중 <b>${state.cart.length+state.issued.length}건</b></button>
   </div>
   <section class="reserve-section" id="pending-reservations"><h2>모집 참여 중</h2>
     ${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><button class="account-order-product" data-a="product-detail" data-v="${p.id}" aria-label="${escapeHtml(p.name)} 상품 상세 보기"><b>${escapeHtml(p.name)}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><em>상품 상세 보기 ›</em></button><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}
@@ -515,7 +521,10 @@ function vReserve(){
     ${state.waitlist.length?state.waitlist.map(x=>`<div class="account-order"><b>${escapeHtml(byId(x.pid).name)}</b><span>${x.qty}소분 · 다음 모집 대기</span><button data-a="leave-wait" data-v="${x.pid}">대기 취소</button></div>`).join(''):'<p class="mini">대기 신청한 상품이 없어요.</p>'}
   </section>
   <section class="reserve-section"><h2>확정된 예약</h2>
-    ${state.cart.length?`<p class="mini">확정된 예약은 장바구니에서 QR과 함께 확인할 수 있어요.</p><button class="btn" data-a="cart">확정 예약 / QR 보기</button>`:'<p class="mini">확정된 예약이 없어요.</p>'}
+    ${state.cart.length||state.issued.length?`<p class="mini">진행 중인 예약과 QR은 장바구니에서 확인할 수 있어요.</p><button class="btn" data-a="cart">진행 중 예약 보기</button>`:'<p class="mini">진행 중인 예약이 없어요.</p>'}
+  </section>
+  <section class="reserve-section" id="completed-reservations"><h2>이용 완료</h2>
+    ${state.completed.length?state.completed.map(x=>{const p=byId(x.pid);return `<div class="account-order"><b>${escapeHtml(p.name)}</b><span>${x.qty}소분 · 수령 완료 · ${won(x.price)}</span></div>`;}).join(''):'<p class="mini">완료된 이용 내역이 없어요.</p>'}
   </section>
   <button class="linkrow" data-a="home-tab">소분 상품 둘러보기 ›</button>
   ${shareTab()}`;
@@ -608,6 +617,15 @@ function modalHTML(){
       <div class="d-btns"><button class="ok" data-a="close">확인</button></div>
     </div></div>`;
   }
+  if(m.type === 'complete-order'){
+    const c=state.issued.find(x=>x.oid===m.oid); if(!c) return '';
+    const p=byId(c.pid);
+    return `<div class="overlay" data-a="overlay"><div class="dialog">
+      <h3>수령을 완료할까요?</h3><div class="d-sum"><b>${escapeHtml(p.name)}</b><span>${c.qty}소분 · ${won(c.price)}</span></div>
+      <p class="warn">완료 처리하면 장바구니의 진행 중 목록에서 이용 완료 내역으로 이동해요.</p>
+      <div class="d-btns"><button class="ghost" data-a="close">돌아가기</button><button class="ok" data-a="confirm-complete">수령 완료</button></div>
+    </div></div>`;
+  }
   if(m.type === 'qr'){
     const c = state.cart.find(x => x.oid === m.oid); if(!c) return '';
     const p = byId(c.pid);
@@ -618,8 +636,8 @@ function modalHTML(){
       <b class="qn">${p.name}</b>
       <p class="mini">${p.portions}인 소분 중 ${c.qty}소분 · ${won(c.price)}</p>
       <p class="mini">예약번호 ${c.oid}</p>
-      <p class="warn" style="margin-top:10px">매장 소분 Zone에서 직원에게 이 QR을 보여주세요.</p>
-      <div class="d-btns"><button class="ok" data-a="close">닫기</button></div></div></div>`;
+      <p class="warn" style="margin-top:10px">QR을 스캔한 뒤, 예약 금액에 맞는 바코드를 상품에 부착해 주세요.</p>
+      <div class="d-btns"><button class="ghost" data-a="close">닫기</button><button class="ok" data-a="barcode-issued" data-v="${escapeHtml(c.oid)}">바코드 발급 완료</button></div></div></div>`;
   }
   return '';
 }
@@ -721,6 +739,29 @@ async function cancelSharedOrder(){
   }
   catch(error){toast(error.message||'취소에 실패했어요');}
 }
+async function markBarcodeIssued(code){
+  try{
+    await dbRpc('mark_share_barcode_issued',{p_public_code:code});
+    const order=state.cart.find(x=>x.oid===code);
+    state.cart=state.cart.filter(x=>x.oid!==code);
+    if(order) state.issued=[{...order,barcodeIssuedAt:new Date().toISOString()},...state.issued];
+    state.modal=null; render();
+    await syncSharedData({quiet:true}).catch(()=>{}); render();
+    toast('QR 사용이 완료됐어요. 바코드 발급 상태로 바뀌었어요');
+  }catch(error){toast(error.message||'QR 사용 상태를 저장하지 못했어요');}
+}
+async function completeShareOrder(){
+  const code=state.modal?.oid;
+  try{
+    await dbRpc('complete_share_order',{p_public_code:code});
+    const order=state.issued.find(x=>x.oid===code);
+    state.issued=state.issued.filter(x=>x.oid!==code);
+    if(order) state.completed=[{...order,completedAt:new Date().toISOString()},...state.completed];
+    state.modal=null; render();
+    await syncSharedData({quiet:true}).catch(()=>{}); render();
+    toast('이용 완료 내역에 저장했어요');
+  }catch(error){toast(error.message||'수령 완료 처리에 실패했어요');}
+}
 
 document.addEventListener('click', e => {
   if(e.target.closest('[data-a="auth-entry"]')){ navigateTab(state.session?'account':'login','account'); return; }
@@ -738,7 +779,7 @@ document.addEventListener('click', e => {
     case 'account': case 'account-tab': navigateTab(state.session?'account':'login','account'); break;
     case 'root-home': state.stack=[];state.view='root-home';state.navTab='home';show('home');top0();break;
     case 'share-home': navigateTab('share-home','home'); break;
-    case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.navTab='home';state.view='share-home'; render(); toast('로그아웃했어요'); break;
+    case 'logout': state.session=null; state.cart=[]; state.issued=[]; state.completed=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.navTab='home';state.view='share-home'; render(); toast('로그아웃했어요'); break;
     case 'home-tab': navigateTab('share-home','home'); break;
     case 'reserve-tab': navigateTab('reserve','reserve'); break;
     case 'community-tab':
@@ -771,6 +812,9 @@ document.addEventListener('click', e => {
     case 'suggestion-vote': toggleSuggestionVote(v); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'success-qr': state.modal = {type:'qr', oid:v}; render(); break;
+    case 'barcode-issued': markBarcodeIssued(v); break;
+    case 'ask-complete': state.modal={type:'complete-order',oid:v}; render(); break;
+    case 'confirm-complete': completeShareOrder(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
     case 'cancel-payment': state.modal = {type:'cancel-payment', oid:state.modal?.oid, method:'card'}; render(); break;
     case 'back-cancel': state.modal = {type:'cancel', oid:state.modal?.oid}; render(); break;

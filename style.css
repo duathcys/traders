@@ -213,6 +213,7 @@ html.framed body{background:#fff}
 .c-btns button{flex:1;padding:11px 0;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
 .qrb{background:var(--g);color:#fff}.qrb .ic{font-size:17px}
 .cancel{background:var(--bg);color:#666}
+.pickup-status{margin-top:12px;padding:10px 12px;border-radius:10px;background:#eff7e5;color:#356029;font-size:12px;line-height:1.45}
 .sum{margin:16px;background:var(--g3);border-radius:16px;padding:16px;font-size:13px;color:#355}
 .linkrow{display:block;width:100%;text-align:left;padding:6px 20px 14px;font-size:13px;color:var(--g);font-weight:700}
 .empty{text-align:center;padding:90px 24px;color:#666}

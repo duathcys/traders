@@ -100,9 +100,14 @@ create table if not exists public.share_orders (
   user_id uuid not null references auth.users(id) on delete cascade,
   qty integer not null check (qty > 0),
   amount integer not null check (amount >= 0),
-  status text not null default 'pending' check (status in ('pending','confirmed','cancelled')),
+  status text not null default 'pending' check (status in ('pending','confirmed','barcode_issued','completed','cancelled')),
   created_at timestamptz not null default now()
 );
+alter table public.share_orders add column if not exists barcode_issued_at timestamptz;
+alter table public.share_orders add column if not exists completed_at timestamptz;
+alter table public.share_orders drop constraint if exists share_orders_status_check;
+alter table public.share_orders add constraint share_orders_status_check
+  check (status in ('pending','confirmed','barcode_issued','completed','cancelled'));
 create index if not exists share_orders_user_status on public.share_orders(user_id,status);
 
 create table if not exists public.share_waitlist (
@@ -233,12 +238,42 @@ begin
   return jsonb_build_object('cancelled',true,'waiter_promoted',v_promoted,'round_status',case when v_total=v_round.group_size then 'filled' else 'open' end);
 end $$;
 
+create or replace function public.mark_share_barcode_issued(p_public_code text)
+returns jsonb language plpgsql security definer set search_path=public as $$
+declare v_order public.share_orders%rowtype;
+begin
+  if auth.uid() is null then raise exception 'LOGIN_REQUIRED'; end if;
+  select * into v_order from public.share_orders
+    where public_code=p_public_code and user_id=auth.uid() and status='confirmed' for update;
+  if not found then raise exception 'ORDER_NOT_AVAILABLE_FOR_QR'; end if;
+  if not exists(select 1 from public.share_rounds where id=v_order.round_id and status='filled') then
+    raise exception 'ROUND_NOT_FILLED';
+  end if;
+  update public.share_orders set status='barcode_issued',barcode_issued_at=now() where id=v_order.id;
+  return jsonb_build_object('updated',true,'status','barcode_issued');
+end $$;
+
+create or replace function public.complete_share_order(p_public_code text)
+returns jsonb language plpgsql security definer set search_path=public as $$
+declare v_order public.share_orders%rowtype;
+begin
+  if auth.uid() is null then raise exception 'LOGIN_REQUIRED'; end if;
+  select * into v_order from public.share_orders
+    where public_code=p_public_code and user_id=auth.uid() and status='barcode_issued' for update;
+  if not found then raise exception 'ORDER_NOT_READY_FOR_COMPLETION'; end if;
+  update public.share_orders set status='completed',completed_at=now() where id=v_order.id;
+  return jsonb_build_object('updated',true,'status','completed');
+end $$;
+
 revoke all on function public.join_share(integer,integer,integer) from public;
 revoke all on function public.join_share_waitlist(integer,integer,integer) from public;
 revoke all on function public.leave_share_waitlist(integer) from public;
 revoke all on function public.start_share_round(integer,integer) from public;
 revoke all on function public.cancel_share(text) from public;
+revoke all on function public.mark_share_barcode_issued(text) from public;
+revoke all on function public.complete_share_order(text) from public;
 grant execute on function public.join_share(integer,integer,integer), public.join_share_waitlist(integer,integer,integer), public.leave_share_waitlist(integer), public.start_share_round(integer,integer), public.cancel_share(text) to authenticated;
+grant execute on function public.mark_share_barcode_issued(text), public.complete_share_order(text) to authenticated;
 
 
 -- Seed the complete catalog from the local catalog data; safe to rerun.
