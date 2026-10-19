@@ -162,5 +162,5 @@ grant execute on function public.join_share(integer,integer,integer), public.joi
 
 -- Create the first open cohort for each sample product. Re-running this file is safe.
 insert into public.share_rounds(product_id,group_size)
-select seed.product_id,seed.group_size from (values (1,5),(2,4),(3,4),(4,3)) as seed(product_id,group_size)
+select seed.product_id,seed.group_size from (values (1,5),(2,4),(3,4),(4,3),(5,5),(6,4)) as seed(product_id,group_size)
 where not exists(select 1 from public.share_rounds r where r.product_id=seed.product_id);

@@ -70,6 +70,7 @@ body{overflow:hidden}
 .hero p{font-size:12px;opacity:.8;margin-top:8px;font-weight:400}
 .hero .e{font-size:58px;filter:drop-shadow(0 6px 8px rgba(0,0,0,.3))}
 .cats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 6px;padding:0 12px 26px;text-align:center}
+.cats.category-picker{grid-template-columns:repeat(2,1fr);padding-top:8px}
 .cats button{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:500;color:#2b2f2e;transition:transform .15s}
 .cats button:active{transform:scale(.93)}
 .cats i{font-style:normal;width:54px;height:54px;border-radius:18px;background:var(--g3);color:var(--g);display:grid;place-items:center;font-size:25px}

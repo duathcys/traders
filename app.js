@@ -14,6 +14,8 @@ const PRODUCTS = [
   {id:5, type:'신선식품', name:'국내산 사과 2kg',     price:19900, portions:5, emoji:'🍎', cls:'fresh'},
   {id:6, type:'신선식품', name:'제주 감귤 3kg',       price:17900, portions:4, emoji:'🍊', cls:'fresh'}
 ];
+const FRESH_PRODUCTS = PRODUCTS.filter(p => p.type === '신선식품');
+const MEAT_SEAFOOD_PRODUCTS = PRODUCTS.filter(p => ['정육','수산'].includes(p.type));
 const CATS = [
   ['leaf','신선식품',true],['meat','정육/수산',true],['bowl','가공식품',false],['snow','냉동식품',false],
   ['bread','베이커리',false],['drink','음료/주류',false],['soap','생활용품',false],['paw','반려동물',false]
@@ -82,7 +84,7 @@ async function syncSharedData({quiet=false}={}){
   if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
-  if(['detail','list','cart','account'].includes(state.view)) render();
+  if(['detail','categories','fresh-list','meat-list','cart','account'].includes(state.view)) render();
 }
 
 function toast(msg){
@@ -130,14 +132,9 @@ function vShareHome(){
   ${shareTab('home')}`;
 }
 
-/* ---------- 2. 상품 목록 ---------- */
-function vList(){
-  const items = PRODUCTS.filter(p => state.tab === '전체' || (state.tab === '정육/수산' ? ['정육','수산'].includes(p.type) : p.type === state.tab));
-  const title = state.tab === '전체' ? '전체 상품' : state.tab === '정육' || state.tab === '수산' ? '정육/수산' : state.tab;
-  const tabs = ['전체','신선식품','정육','수산'];
-  return `${head(title)}
-  <div class="tabs">${tabs.map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
-  <div class="list">${items.map(p=>{
+/* ---------- 2. 카테고리별 상품 목록 ---------- */
+function productCards(items){
+  return items.map(p=>{
     const r = remain(p);
     const round = currentRound(p);
     return `<div class="card" data-a="detail" data-v="${p.id}">
@@ -146,7 +143,28 @@ function vList(){
         <span class="price">1소분 ${won(unitPrice(p))}</span><br>
         <span class="mini">총 ${won(p.price)} · ${p.portions}인 소분</span><br>
         <span class="pill">${round ? `모집 ${round.joined_qty}/${round.group_size}소분` : `모집 마감 · 대기 ${latestRound(p)?.waiting_count||0}명`}</span>
-        <button class="btn sm" data-a="detail" data-v="${p.id}">상품 보기</button></div></div>`;}).join('')}</div>
+        <button class="btn sm" data-a="detail" data-v="${p.id}">상품 보기</button></div></div>`;
+  }).join('');
+}
+function vCategories(){
+  const available=CATS.filter(c=>c[2]);
+  return `${head('카테고리')}
+  <div class="sec-t">소분 상품 카테고리</div>
+  <div class="cats category-picker">${available.map(c=>`<button data-a="cat" data-v="${c[1]}" data-on="true"><i>${ic(c[0])}</i>${c[1]}</button>`).join('')}</div>
+  ${shareTab('share')}`;
+}
+function vFreshList(){
+  return `${head('신선식품')}
+  <div class="sec-t">신선식품 소분 상품</div>
+  <div class="list">${productCards(FRESH_PRODUCTS)}</div>
+  ${shareTab('share')}`;
+}
+function vMeatList(){
+  const items=MEAT_SEAFOOD_PRODUCTS.filter(p=>state.tab==='전체'||p.type===state.tab);
+  const tabs=['전체','정육','수산'];
+  return `${head('정육/수산')}
+  <div class="tabs">${tabs.map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
+  <div class="list">${productCards(items)}</div>
   ${shareTab('share')}`;
 }
 
@@ -298,7 +316,7 @@ function modalHTML(){
 
 /* ---------- 렌더 & 이벤트 ---------- */
 function render(){
-  const v = {'share-home':vShareHome, list:vList, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
+  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
   syncHomeAuth();
@@ -369,8 +387,10 @@ document.addEventListener('click', e => {
     case 'share-home': state.view='share-home'; render(); break;
     case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.view='share-home'; render(); toast('로그아웃했어요'); break;
     case 'home-tab': state.stack = []; go('share-home', false); break;
-    case 'cat-tab': state.tab = '전체'; go('list'); break;
-    case 'cat': if(el.dataset.on === 'true'){ state.tab = v; go('list'); } else toast('준비 중이에요'); break;
+    case 'cat-tab': go('categories'); break;
+    case 'cat':
+      if(el.dataset.on !== 'true'){ toast('준비 중이에요'); break; }
+      state.tab='전체'; go(v==='신선식품'?'fresh-list':'meat-list'); break;
     case 'tab': state.tab = v; render(); break;
     case 'detail': pick(v); go('detail'); break;
     case 'qty-inc': state.qty = Math.min(currentRound(state.product)?remain(state.product):state.product.portions, state.qty + 1); render(); break;
@@ -381,7 +401,7 @@ document.addEventListener('click', e => {
     case 'start-round': startNewRound(); break;
     case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
-    case 'shop': state.tab = '전체'; state.stack = ['share-home']; state.view = 'list'; render(); top0(); break;
+    case 'shop': state.tab = '전체'; state.stack = ['share-home']; state.view = 'categories'; render(); top0(); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
     case 'confirm-cancel': cancelSharedOrder(); break;
