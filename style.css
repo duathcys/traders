@@ -99,6 +99,11 @@ body{overflow:hidden}
 .pop button{text-align:left;font-size:12.5px;color:#555}
 .pop .im,.card .im,.d-img,.r-img{display:grid;place-items:center;background:linear-gradient(135deg,#5a1212,#b23030)}
 .pop .im{height:118px;border-radius:16px;font-size:48px;margin-bottom:8px}
+.product-photo{display:block;width:100%;height:100%;object-fit:contain;background:#fff}
+.pop .im .product-photo{border-radius:16px}
+.card .im .product-photo{border-radius:14px}
+.d-img .product-photo{padding:12px}
+.r-img .product-photo{border-radius:14px}
 .pop b{display:block;margin-top:2px;font-size:15px;color:var(--txt);font-weight:700}
 .im.fish,.d-img.fish,.r-img.fish{background:linear-gradient(135deg,#d3541a,#f7a867)!important}
 .im.beef,.d-img.beef,.r-img.beef{background:linear-gradient(135deg,#6e2515,#c75a3e)!important}

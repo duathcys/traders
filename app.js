@@ -40,9 +40,12 @@ const $ = s => document.querySelector(s);
 const won = n => n.toLocaleString('ko-KR') + '원';
 const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+const productVisual = p => +p.id===3
+  ? `<img class="product-photo" src="assets/hanwoo-bulgogi-1kg.png" alt="${escapeHtml(p.name)}">`
+  : p.emoji;
 const unitPrice = p => Math.round(p.price / p.portions);                 // 1소분 가격
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
-const byId = id => PRODUCTS.find(p => p.id === +id);
+const byId = id => PRODUCTS.find(p => +p.id === +id);
 
 const state = { view:'root-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
 let communityLoadVersion=0;
@@ -214,8 +217,8 @@ function vShareHome(){
   <div class="hero"><div><b>필요한 만큼만,<br>소분 예약!</b><p>대용량 정육·수산을 원하는 만큼</p></div><div class="e">🥩</div></div>
   <div class="cats">${CATS.map(c=>`<button data-a="cat" data-v="${c[1]}" data-on="${c[2]}"><i>${ic(c[0])}</i>${c[1]}</button>`).join('')}</div>
   <div class="sec-t">지금 많이 찾는 상품</div>
-  <div class="pop">${PRODUCTS.slice(0,2).map(p=>`
-    <button data-a="detail" data-v="${p.id}"><div class="im ${p.cls}">${p.emoji}</div>
+  <div class="pop">${[PRODUCTS.find(p=>+p.id===3),PRODUCTS.find(p=>+p.id===1)].filter(Boolean).map(p=>`
+    <button data-a="detail" data-v="${p.id}"><div class="im ${p.cls}">${productVisual(p)}</div>
     <span class="mini">${p.name}</span><b>1소분 ${won(unitPrice(p))}</b></button>`).join('')}</div>
   ${shareTab('home')}`;
 }
@@ -227,7 +230,7 @@ function productCards(items){
     const r = remain(p);
     const round = currentRound(p);
     return `<div class="card" ${available?`data-a="detail" data-v="${p.id}"`:''}>
-      <div class="im ${p.cls}">${p.emoji}<span class="tag ${round?'':'off'}">${p.availability|| (round ? '모집중' : '마감')}</span></div>
+      <div class="im ${p.cls}">${productVisual(p)}<span class="tag ${round?'':'off'}">${p.availability|| (round ? '모집중' : '마감')}</span></div>
       <div class="info"><b>${p.name}</b>
         ${p.weight?`<span class="mini">${p.weight}</span><br>`:''}
         ${available?`<span class="price">${won(p.price)}</span>${p.discount?` <span class="discount">${p.discount}% 할인</span>`:''}<br>`:`<span class="unavailable">${p.availability||'판매 정보 없음'}</span><br>`}
@@ -316,7 +319,7 @@ function vDetail(){
   const pending=state.pending.find(x=>x.pid===p.id), waiting=state.waitlist.find(x=>x.pid===p.id);
   state.qty = q;
   return `${head('소분 예약')}
-  <div class="d-img ${p.cls}">${p.emoji}<span class="tag">${p.portions}인 소분</span></div>
+  <div class="d-img ${p.cls}">${productVisual(p)}<span class="tag">${p.portions}인 소분</span></div>
   <div class="d-body">
     ${p.category?`<div class="mini">${p.category}${p.weight?` · ${p.weight}`:''}</div>`:''}
     <h2>${p.name}</h2>
@@ -353,7 +356,7 @@ function vCart(){
   <div class="cart-list">${state.cart.map(c=>{
     const p = byId(c.pid);
     return `<div class="c-item">
-      <div class="c-top"><div class="r-img ${p.cls}">${p.emoji}</div>
+      <div class="c-top"><div class="r-img ${p.cls}">${productVisual(p)}</div>
         <div class="c-info"><b>${p.name}</b>
           <span class="mini">${p.portions}인 소분 중 ${c.qty}소분 · 오늘 방문</span>
           <span class="mini">예약번호 ${c.oid}</span>
