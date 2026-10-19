@@ -806,7 +806,7 @@ document.addEventListener('click', e => {
     case 'start-round': startNewRound(); break;
     case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
-    case 'shop': state.navTab='';state.tab = '전체'; go('categories'); break;
+    case 'shop': navigateTab('share-home','home'); break;
     case 'community-refresh': loadCommunity().catch(error=>toast(error.message||'목록을 새로고침하지 못했어요')); break;
     case 'account-menu': $('#my-activity')?.scrollIntoView({behavior:'smooth',block:'start'}); break;
     case 'account-settings': toast('계정 정보 설정은 준비 중이에요'); break;
