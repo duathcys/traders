@@ -53,7 +53,7 @@ async function dbRequest(path, options={}, retry=true){
   if(response.status===401 && retry && state.session?.refresh_token){
     const refreshed=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':cfg.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:state.session.refresh_token})});
     if(refreshed.ok){const session=await refreshed.json();state.session={...session,user:session.user};localStorage.setItem(AUTH_KEY,JSON.stringify(state.session));return dbRequest(path,options,false);}
-    state.session=null;localStorage.removeItem(AUTH_KEY);
+    state.session=null;localStorage.removeItem(AUTH_KEY);syncHomeAuth();
   }
   if(!response.ok) throw new Error(data?.message||data?.hint||data?.details||'공유 DB 요청에 실패했어요. supabase-setup.sql을 먼저 적용했는지 확인해 주세요.');
   return data;
@@ -69,13 +69,17 @@ async function syncSharedData({quiet=false}={}){
   const [rounds,own]=await Promise.all([roundsPromise,ownPromise]);
   const wasPending=new Set(state.pending.map(x=>x.oid));
   state.rounds=rounds||[];
-  state.cart=(own[0]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
+  // A confirmed order is eligible for QR only if its cohort itself is filled.
+  // This prevents stale or inconsistent order status from exposing a pickup QR.
+  const filledRoundIds=new Set((rounds||[]).filter(r=>r.status==='filled'&&Number(r.joined_qty)>=Number(r.group_size)).map(r=>r.id));
+  state.cart=(own[0]||[]).filter(x=>filledRoundIds.has(x.round_id)).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
   state.pending=(own[1]||[]).map(x=>({oid:x.public_code,pid:x.product_id,qty:x.qty,price:x.amount,roundId:x.round_id,createdAt:x.created_at}));
   state.waitlist=(own[2]||[]).map(x=>({wid:x.id,pid:x.product_id,qty:x.qty,price:x.amount,createdAt:x.created_at}));
   const newlyConfirmed=state.cart.some(x=>wasPending.has(x.oid));
   const newlyPromoted=state.pending.some(x=>!wasPending.has(x.oid));
   if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
+  syncHomeAuth();
   if(['detail','list','cart','account'].includes(state.view)) render();
 }
 
@@ -244,7 +248,7 @@ async function submitAuth(form){
     if(!response.ok) throw new Error(result.msg || result.message || result.error_description || result.error || '인증에 실패했어요');
     if(signup && !result.access_token){ toast('가입 확인 메일을 보냈어요. 이메일을 확인해 주세요.'); state.view='login'; render(); return; }
     state.session = {access_token:result.access_token,refresh_token:result.refresh_token,user:result.user};
-    localStorage.setItem(AUTH_KEY, JSON.stringify(state.session)); state.view='account'; render();
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state.session)); syncHomeAuth(); state.view='account'; render();
     try{await syncSharedData({quiet:true});toast(signup?'회원가입이 완료됐어요':'로그인됐어요');}
     catch(error){toast(`로그인됐어요. 공유 DB 설정을 확인해 주세요: ${error.message}`);}
   } catch(error){
