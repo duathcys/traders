@@ -81,6 +81,7 @@ body{overflow:hidden}
 .pop b{display:block;margin-top:2px;font-size:15px;color:var(--txt);font-weight:700}
 .im.fish,.d-img.fish,.r-img.fish{background:linear-gradient(135deg,#d3541a,#f7a867)!important}
 .im.beef,.d-img.beef,.r-img.beef{background:linear-gradient(135deg,#6e2515,#c75a3e)!important}
+.im.fresh,.d-img.fresh,.r-img.fresh{background:linear-gradient(135deg,#32724b,#82b76d)!important}
 .tabs{display:flex;gap:8px;padding:2px 16px 12px}
 .tabs button{padding:8px 18px;border-radius:20px;background:var(--bg);font-size:13.5px;font-weight:500;color:#555;transition:all .15s}
 .tabs .on{background:var(--g);color:#fff;font-weight:700}

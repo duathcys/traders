@@ -10,7 +10,9 @@ const PRODUCTS = [
   {id:1, type:'정육', name:'호주산 냉장 안심 2.5kg', price:55800, portions:5, emoji:'🥩', cls:''},
   {id:2, type:'수산', name:'생연어 필렛 2.0kg',     price:49800, portions:4, emoji:'🐟', cls:'fish'},
   {id:3, type:'정육', name:'한우 불고기 1.0kg',     price:32800, portions:4, emoji:'🍖', cls:'beef'},
-  {id:4, type:'수산', name:'손질 새우 1.0kg',       price:24900, portions:3, emoji:'🦐', cls:'fish'}
+  {id:4, type:'수산', name:'손질 새우 1.0kg',       price:24900, portions:3, emoji:'🦐', cls:'fish'},
+  {id:5, type:'신선식품', name:'국내산 사과 2kg',     price:19900, portions:5, emoji:'🍎', cls:'fresh'},
+  {id:6, type:'신선식품', name:'제주 감귤 3kg',       price:17900, portions:4, emoji:'🍊', cls:'fresh'}
 ];
 const CATS = [
   ['leaf','신선식품',true],['meat','정육/수산',true],['bowl','가공식품',false],['snow','냉동식품',false],
@@ -130,9 +132,11 @@ function vShareHome(){
 
 /* ---------- 2. 상품 목록 ---------- */
 function vList(){
-  const items = PRODUCTS.filter(p => state.tab === '전체' || p.type === state.tab);
-  return `${head('정육/수산')}
-  <div class="tabs">${['전체','정육','수산'].map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
+  const items = PRODUCTS.filter(p => state.tab === '전체' || (state.tab === '정육/수산' ? ['정육','수산'].includes(p.type) : p.type === state.tab));
+  const title = state.tab === '전체' ? '전체 상품' : state.tab === '정육' || state.tab === '수산' ? '정육/수산' : state.tab;
+  const tabs = ['전체','신선식품','정육','수산'];
+  return `${head(title)}
+  <div class="tabs">${tabs.map(t=>`<button class="${state.tab===t?'on':''}" data-a="tab" data-v="${t}">${t}</button>`).join('')}</div>
   <div class="list">${items.map(p=>{
     const r = remain(p);
     const round = currentRound(p);
@@ -366,7 +370,7 @@ document.addEventListener('click', e => {
     case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.view='share-home'; render(); toast('로그아웃했어요'); break;
     case 'home-tab': state.stack = []; go('share-home', false); break;
     case 'cat-tab': state.tab = '전체'; go('list'); break;
-    case 'cat': if(el.dataset.on === 'true'){ state.tab = '전체'; go('list'); } else toast('준비 중이에요'); break;
+    case 'cat': if(el.dataset.on === 'true'){ state.tab = v; go('list'); } else toast('준비 중이에요'); break;
     case 'tab': state.tab = v; render(); break;
     case 'detail': pick(v); go('detail'); break;
     case 'qty-inc': state.qty = Math.min(currentRound(state.product)?remain(state.product):state.product.portions, state.qty + 1); render(); break;
