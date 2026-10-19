@@ -481,6 +481,14 @@ async function submitAuth(form){
 /* ---------- 팝업 ---------- */
 function modalHTML(){
   const m = state.modal; if(!m) return '';
+  if(m.type === 'notice'){
+    return `<div class="overlay" data-a="overlay"><div class="dialog notice-dialog" role="alertdialog" aria-modal="true" aria-labelledby="notice-title" aria-describedby="notice-message">
+      <div class="notice-icon" aria-hidden="true">!</div>
+      <h3 id="notice-title">${escapeHtml(m.title)}</h3>
+      <p id="notice-message" class="notice-copy">${escapeHtml(m.message)}</p>
+      <div class="d-btns"><button class="ok" data-a="close">확인</button></div>
+    </div></div>`;
+  }
   if(m.type === 'success'){
     const c=state.cart.find(x=>x.oid===m.oid); if(!c) return '';
     const p=byId(c.pid);
@@ -534,6 +542,22 @@ function requireLogin(){
   if(state.session) return true;
   state.view='login'; render(); toast('공동 소분에 참여하려면 먼저 로그인해 주세요'); return false;
 }
+function joinErrorNotice(error){
+  const message=String(error?.message||'');
+  if(message.includes('NOT_ENOUGH_SPOTS')) return {
+    title:'남은 수량이 부족해요',
+    message:'다른 분의 신청이 먼저 반영됐어요. 최신 모집 현황을 불러왔으니 남은 수량을 확인해 주세요.'
+  };
+  if(message.includes('ROUND_CLOSED')) return {
+    title:'모집이 마감됐어요',
+    message:'다른 분이 먼저 신청해 모집이 마감됐어요. 모집 현황을 새로 확인해 주세요.'
+  };
+  if(message.includes('ALREADY_JOINED')) return {
+    title:'이미 참여한 모집이에요',
+    message:'이 모집에는 이미 신청되어 있어요. 최신 참여 현황을 확인해 주세요.'
+  };
+  return null;
+}
 async function joinCurrentRound(){
   if(!requireLogin()) return;
   const p=state.product, q=state.qty;
@@ -544,7 +568,17 @@ async function joinCurrentRound(){
     state.navTab='reserve';state.view='reserve';render();top0();
     if(confirmed){const order=state.cart.find(x=>x.pid===p.id);if(order){state.modal={type:'success',oid:order.oid};render();}}
     toast(confirmed?'예약이 확정됐어요!':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
-  }catch(error){toast(error.message||'모집 참여에 실패했어요');}
+  }catch(error){
+    const notice=joinErrorNotice(error);
+    if(!notice){toast(error.message||'모집 참여에 실패했어요');return;}
+    state.modal=null;
+    await syncSharedData({quiet:true}).catch(()=>{});
+    const available=state.product?remain(state.product):0;
+    if(available>0) state.qty=Math.min(state.qty,available);
+    render();
+    state.modal={type:'notice',...notice};
+    render();
+  }
 }
 async function addToWaitlist(){
   if(!requireLogin()) return;
