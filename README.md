@@ -102,4 +102,3 @@ python -m http.server 8000
 - 아이폰 프레임 미리보기: `http://localhost:8000/preview.html`
 
 GitHub Pages는 저장소 설정에서 `main` 브랜치의 루트를 배포하도록 설정합니다. 배포된 `preview.html`은 사이트의 `/preview.html` 경로에서 열 수 있습니다.
-
