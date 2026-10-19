@@ -655,8 +655,9 @@ function requireLogin(){
   if(state.session) return true;
   state.view='login'; render(); toast('공동 소분에 참여하려면 먼저 로그인해 주세요'); return false;
 }
+const isAlreadyJoinedError=error=>/ALREADY[_\s-]*JOINED/i.test(`${error?.code||''} ${error?.message||''}`);
 function joinErrorNotice(error){
-  const message=String(error?.message||'');
+  const message=String(error?.message||'').toUpperCase();
   if(message.includes('NOT_ENOUGH_SPOTS')) return {
     title:'남은 수량이 부족해요',
     message:'다른 분의 신청이 먼저 반영됐어요. 최신 모집 현황을 불러왔으니 남은 수량을 확인해 주세요.'
@@ -665,9 +666,9 @@ function joinErrorNotice(error){
     title:'모집이 마감됐어요',
     message:'다른 분이 먼저 신청해 모집이 마감됐어요. 모집 현황을 새로 확인해 주세요.'
   };
-  if(message.includes('ALREADY_JOINED')) return {
+  if(isAlreadyJoinedError(error)) return {
     title:'이미 참여한 모집이에요',
-    message:'이 모집에는 이미 신청되어 있어요. 최신 참여 현황을 확인해 주세요.'
+    message:'같은 상품 모집에 이미 신청되어 있어요. 최신 상태를 불러왔으니 모집 참여 중 또는 장바구니에서 확인해 주세요.'
   };
   return null;
 }
@@ -708,19 +709,21 @@ async function startNewRound(){
     await syncSharedData({quiet:true});
     const alreadyInNewRound=()=>state.pending.some(x=>x.pid===p.id&&x.roundId===roundId)||state.cart.some(x=>x.pid===p.id&&x.roundId===roundId);
     let joinedNewRound=false;
+    let alreadyJoinedConflict=false;
     if(currentRound(p)?.id===roundId&&!alreadyInNewRound()){
       // Starting a round should leave at least one portion for another shopper;
       // otherwise this single action can fill the round and immediately issue a QR.
       const q=Math.min(Math.max(1,state.qty),remain(p)-1,p.portions-1);
       if(q>0){
         try{await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});joinedNewRound=true;}
-        catch(error){if(error.message!=='ALREADY_JOINED'&&error.message!=='ROUND_CLOSED')throw error;}
+        catch(error){if(isAlreadyJoinedError(error)) alreadyJoinedConflict=true; else if(error.message!=='ROUND_CLOSED') throw error;}
       }
     }
     await syncSharedData({quiet:true});
     state.view=state.cart.some(x=>x.pid===p.id&&x.roundId===roundId)?'cart':'reserve';state.navTab='reserve';render();top0();
     const order=state.cart.find(x=>x.pid===p.id&&x.roundId===roundId);
     if(order){state.modal={type:'success',oid:order.oid};render();}
+    if(alreadyJoinedConflict){state.modal={type:'notice',...joinErrorNotice({message:'ALREADY_JOINED'})};render();}
     toast(order?'예약이 확정됐어요!':state.pending.some(x=>x.pid===p.id&&x.roundId===roundId)?'새 모집에 참여했어요. 다른 참여자를 기다려 주세요':state.waitlist.some(x=>x.pid===p.id)?'새 모집 자리가 부족해 대기 중이에요':joinedNewRound?'새 모집을 시작하고 참여했어요':'모집 자리가 부족해 참여하지 못했어요. 현황을 확인해 주세요');
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
