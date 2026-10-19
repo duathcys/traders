@@ -141,7 +141,7 @@ const head = (title, withCart = true) => `
 const shareTab = on => `<footer class="tab share">
   <a data-a="home-tab" class="${on==='home'?'on':''}">${ic('home')}<span>홈</span></a>
   <a data-a="cat-tab">${ic('grid')}<span>카테고리</span></a>
-  <a class="${on==='share'?'on':''}">${ic('together')}<span>소분 예약</span></a>
+  <a data-a="home-tab" class="${on==='share'?'on':''}">${ic('together')}<span>소분 예약</span></a>
   <a data-a="account">${ic('user')}<span>마이페이지</span></a></footer>`;
 
 /* ---------- 1. 홈 & 카테고리 ---------- */
