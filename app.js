@@ -414,7 +414,10 @@ function vDetail(){
     ? `<button class="btn" data-a="ask-cancel" data-v="${pending.oid}">모집 대기 취소하기</button>`
     : round
       ? `<button class="btn" data-a="ask-reserve">소분 모집 참여하기 · ${won(calc(p,q))}</button>`
-      : `<div class="cta-actions"><button class="btn" data-a="${waiting?'leave-wait':'join-wait'}" data-v="${p.id}">${waiting?'대기 취소하기':'마감 대기 신청하기'}</button><button class="linkrow" data-a="start-round" data-v="${p.id}">같은 상품 새 소분 모집 시작하기 ›</button></div>`}</div>`;
+      : `<div class="cta-actions">
+        <button class="btn cta-choice" data-a="${waiting?'leave-wait':'join-wait'}" data-v="${p.id}"><b>${waiting?'대기 취소':'마감 대기 신청'}</b><span>${waiting?'대기 신청을 취소해요':'다음 모집 순서를 기다려요'}</span></button>
+        <button class="btn cta-choice cta-choice-secondary" data-a="start-round" data-v="${p.id}"><b>새 모집 시작</b><span>새 모임을 열고 참여해요</span></button>
+      </div>`}</div>`;
 }
 
 /* ---------- 4. 장바구니 ---------- */
@@ -506,7 +509,7 @@ function vReserve(){
     <button data-a="cart">확정 예약 <b>${state.cart.length}건</b></button>
   </div>
   <section class="reserve-section" id="pending-reservations"><h2>모집 참여 중</h2>
-    ${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><b>${escapeHtml(p.name)}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}
+    ${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><button class="account-order-product" data-a="product-detail" data-v="${p.id}" aria-label="${escapeHtml(p.name)} 상품 상세 보기"><b>${escapeHtml(p.name)}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><em>상품 상세 보기 ›</em></button><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}
   </section>
   <section class="reserve-section" id="waitlist-reservations"><h2>마감 대기</h2>
     ${state.waitlist.length?state.waitlist.map(x=>`<div class="account-order"><b>${escapeHtml(byId(x.pid).name)}</b><span>${x.qty}소분 · 다음 모집 대기</span><button data-a="leave-wait" data-v="${x.pid}">대기 취소</button></div>`).join(''):'<p class="mini">대기 신청한 상품이 없어요.</p>'}
@@ -682,22 +685,25 @@ async function startNewRound(){
   if(!requireLogin()) return;
   const p=state.product;
   try{
-    await dbRpc('start_share_round',{p_product_id:p.id,p_group_size:p.portions});
+    const created=await dbRpc('start_share_round',{p_product_id:p.id,p_group_size:p.portions});
+    const roundId=created?.id;
     await syncSharedData({quiet:true});
-    const already=( )=>state.pending.some(x=>x.pid===p.id)||state.cart.some(x=>x.pid===p.id);
-    if(currentRound(p)&&!already()){
-      try{const q=Math.min(state.qty,remain(p));await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});}
-      catch(error){if(error.message!=='ALREADY_JOINED'&&error.message!=='ROUND_CLOSED')throw error;}
+    const alreadyInNewRound=()=>state.pending.some(x=>x.pid===p.id&&x.roundId===roundId)||state.cart.some(x=>x.pid===p.id&&x.roundId===roundId);
+    let joinedNewRound=false;
+    if(currentRound(p)?.id===roundId&&!alreadyInNewRound()){
+      // Starting a round should leave at least one portion for another shopper;
+      // otherwise this single action can fill the round and immediately issue a QR.
+      const q=Math.min(Math.max(1,state.qty),remain(p)-1,p.portions-1);
+      if(q>0){
+        try{await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});joinedNewRound=true;}
+        catch(error){if(error.message!=='ALREADY_JOINED'&&error.message!=='ROUND_CLOSED')throw error;}
+      }
     }
     await syncSharedData({quiet:true});
-    if(!currentRound(p)&&!already()&&!state.waitlist.some(x=>x.pid===p.id)){
-      await dbRpc('join_share_waitlist',{p_product_id:p.id,p_qty:state.qty,p_amount:calc(p,state.qty)});
-      await syncSharedData({quiet:true});
-    }
-    state.view=state.cart.some(x=>x.pid===p.id)?'cart':'reserve';state.navTab='reserve';render();top0();
-    const order=state.cart.find(x=>x.pid===p.id);
+    state.view=state.cart.some(x=>x.pid===p.id&&x.roundId===roundId)?'cart':'reserve';state.navTab='reserve';render();top0();
+    const order=state.cart.find(x=>x.pid===p.id&&x.roundId===roundId);
     if(order){state.modal={type:'success',oid:order.oid};render();}
-    toast(order?'예약이 확정됐어요!':state.pending.some(x=>x.pid===p.id)?'새 소분 모집에 참여했어요':'다음 소분 모집 대기 신청이 완료됐어요');
+    toast(order?'예약이 확정됐어요!':state.pending.some(x=>x.pid===p.id&&x.roundId===roundId)?'새 모집에 참여했어요. 다른 참여자를 기다려 주세요':state.waitlist.some(x=>x.pid===p.id)?'새 모집 자리가 부족해 대기 중이에요':joinedNewRound?'새 모집을 시작하고 참여했어요':'모집 자리가 부족해 참여하지 못했어요. 현황을 확인해 주세요');
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
 async function cancelSharedOrder(){
@@ -761,6 +767,7 @@ document.addEventListener('click', e => {
     case 'account-menu': $('#my-activity')?.scrollIntoView({behavior:'smooth',block:'start'}); break;
     case 'account-settings': toast('계정 정보 설정은 준비 중이에요'); break;
     case 'reserve-section': document.getElementById(v)?.scrollIntoView({behavior:'smooth',block:'start'}); break;
+    case 'product-detail': state.product=byId(+v); state.qty=1; if(state.product) go('detail'); break;
     case 'suggestion-vote': toggleSuggestionVote(v); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'success-qr': state.modal = {type:'qr', oid:v}; render(); break;
