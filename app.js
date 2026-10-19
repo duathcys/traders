@@ -44,7 +44,8 @@ const unitPrice = p => Math.round(p.price / p.portions);                 // 1소
 const calc = (p, q) => Math.round(p.price / p.portions * q);             // 가격 ÷ 인원 × 구매 소분 수
 const byId = id => PRODUCTS.find(p => p.id === +id);
 
-const state = { view:'share-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
+const state = { view:'root-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
+let communityLoadVersion=0;
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
 function syncHomeAuth(){
@@ -87,11 +88,13 @@ async function loadProducts(){
   FRESH_CATEGORIES=uniqueCategories(FRESH_PRODUCTS);
   MEAT_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='정육'));
   SEAFOOD_CATEGORIES=uniqueCategories(MEAT_SEAFOOD_PRODUCTS.filter(p=>p.type==='수산'));
-  if(state.view!=='community') render();
+  if(!['community','root-home'].includes(state.view)) render();
   return PRODUCTS;
 }
 async function loadCommunity(){
+  const version=++communityLoadVersion;
   const rows=await dbRpc('list_product_suggestions',{});
+  if(version!==communityLoadVersion) return state.community;
   state.community=rows||[];
   if(state.view==='community'){
     const list=$('#community-suggestions');
@@ -103,10 +106,25 @@ async function submitSuggestion(form){
   if(!requireLogin()) return;
   const data=new FormData(form), productName=String(data.get('product_name')||'').trim(), details=String(data.get('details')||'').trim();
   if(!productName) return toast('추천할 상품명을 입력해 주세요');
+  const submitButton=form.querySelector('[type="submit"]');
+  submitButton.disabled=true;
+  submitButton.textContent='등록 중…';
   try{
-    await dbRequest('product_suggestions',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:state.session.user.id,product_name:productName,details})});
-    form.reset();await loadCommunity();toast('상품 추천을 등록했어요');
-  }catch(error){toast(error.message||'상품 추천을 등록하지 못했어요');}
+    const rows=await dbRequest('product_suggestions?select=id,product_name,details,created_at',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({user_id:state.session.user.id,product_name:productName,details})});
+    const created=rows?.[0];
+    if(!created?.id) throw new Error('등록 결과를 확인하지 못했어요. 목록을 새로고침해 확인해 주세요.');
+    communityLoadVersion++;
+    state.community=[{...created,vote_count:0,voted_by_me:false},...state.community.filter(item=>item.id!==created.id)];
+    const list=$('#community-suggestions');
+    if(list&&state.view==='community') list.innerHTML=communitySuggestionsHTML();
+    form.reset();
+    toast('상품 추천을 등록했어요');
+  }catch(error){
+    toast(error.message||'상품 추천을 등록하지 못했어요');
+  }finally{
+    submitButton.disabled=false;
+    submitButton.textContent='상품 추천하기';
+  }
 }
 async function toggleSuggestionVote(id){
   if(!requireLogin()) return;
@@ -139,7 +157,7 @@ async function syncSharedData({quiet=false}={}){
   if(!quiet&&newlyConfirmed) toast('모집이 완료되어 장바구니에 담겼어요');
   else if(!quiet&&newlyPromoted) toast('대기 순서가 되어 모집에 참여됐어요');
   syncHomeAuth();
-  if(['detail','categories','fresh-list','meat-list','search','cart','account'].includes(state.view)) render();
+  if(['detail','categories','fresh-list','meat-list','search','reserve','cart','account'].includes(state.view)) render();
 }
 
 function toast(msg){
@@ -158,10 +176,22 @@ function go(view, push = true){ if(push) state.stack.push(state.view); state.vie
 function back(){
   if(state.stack.length){
     state.view = state.stack.pop();
+    if(state.view==='root-home'){
+      state.navTab='home';
+      state.modal=null;
+      show('home');
+      top0();
+      return;
+    }
     if(state.view==='share-home'&&!state.navTab) state.navTab='home';
     render();
-  }else{ state.navTab='home';show('home');state.view='share-home'; }
+  }else{ state.navTab='home';state.view='root-home';show('home'); }
   top0();
+}
+function navigateTab(view,tab){
+  state.navTab=tab;
+  if(state.view===view){ render(); return; }
+  go(view);
 }
 
 /* ---------- 공통 조각 ---------- */
@@ -276,7 +306,7 @@ function communitySuggestionsHTML(){
   return state.community.length?`<div class="community-list">${state.community.map((item,index)=>`<article class="suggestion-card">
     <div class="suggestion-rank">${index+1}</div><div class="suggestion-body"><b>${escapeHtml(item.product_name)}</b>${item.details?`<p>${escapeHtml(item.details)}</p>`:''}<small>${new Date(item.created_at).toLocaleDateString('ko-KR')}</small></div>
     <button class="vote-btn ${item.voted_by_me?'voted':''}" data-a="suggestion-vote" data-v="${item.id}" aria-label="좋아요 투표">♥ <span>${item.vote_count||0}</span></button>
-  </article>`).join('')}</div>`:'<div class="search-empty">아직 추천된 상품이 없어요.<br>첫 번째 상품을 추천해 보세요.</div>'}
+  </article>`).join('')}</div>`:'<div class="search-empty">아직 추천된 상품이 없어요.<br>첫 번째 상품을 추천해 보세요.</div>';
 }
 
 /* ---------- 3. 상세 & 소분 수량 선택 ---------- */
@@ -365,13 +395,55 @@ function vAuth(signup = false){
   <p class="auth-note">이메일과 비밀번호로 안전하게 로그인해요.</p>`;
 }
 function vAccount(){
-  const email = state.session?.user?.email || '';
-  return `${head('마이페이지', false)}
-  <div class="account-top"><div class="account-avatar">${ic('user')}</div><div><span>회원</span><b>${email}</b></div></div>
-  <div class="account-stats"><div>예약<b>${state.cart.length}건</b></div><div>모집중<b>${state.pending.length}건</b></div><div>대기<b>${state.waitlist.length}건</b></div></div>
-  <div class="account-section"><h2>모집 참여 중</h2>${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><b>${p.name}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}</div>
-  <div class="account-section"><h2>마감 대기</h2>${state.waitlist.length?state.waitlist.map(x=>`<div class="account-order"><b>${byId(x.pid).name}</b><span>${x.qty}소분 · 다음 모집 대기</span><button data-a="leave-wait" data-v="${x.pid}">대기 취소</button></div>`).join(''):'<p class="mini">대기 신청한 상품이 없어요.</p>'}</div>
-  <div class="account-section"><h2>마이페이지</h2><button data-a="cart">확정된 예약 / QR 보기 <span>${state.cart.length}건　›</span></button><button data-a="share-home">소분 상품 보기 <span>›</span></button><button data-a="logout">로그아웃 <span>›</span></button></div>`;
+  const user=state.session?.user||{}, email=user.email||'';
+  const name=user.user_metadata?.name||user.user_metadata?.full_name||email.split('@')[0]||'회원';
+  const displayName=name.length>20?`${name.slice(0,20)}…`:name;
+  return `<header class="mypage-header">
+    <button data-a="back" aria-label="뒤로">${ic('back')}</button><button data-a="root-home" aria-label="트레이더스 홈">${ic('home')}</button>
+    <h1>마이페이지</h1><button data-a="search-open" aria-label="검색">${ic('search')}</button><button data-a="account-menu" aria-label="메뉴">${ic('menu')}</button>
+  </header>
+  <section class="mypage-profile">
+    <div class="mypage-avatar">${ic('user')}</div><div><span>${escapeHtml(displayName)}</span><b>${escapeHtml(email)}</b></div>
+  </section>
+  <section class="membership-cards" aria-label="멤버십">
+    <article class="membership-card"><b>트레이더스 멤버십</b><span><i>T</i> 가입하고 다양한 혜택을 만나보세요</span></article>
+    <article class="membership-card membership-emart"><b>이마트 포인트</b><span><i>e</i> 포인트 적립과 사용 안내</span></article>
+  </section>
+  <section class="mypage-stats">
+    <div><i>▣</i><span>쿠폰</span><b>0개</b></div><div><i>♥</i><span>리뷰</span><b>0개</b></div><div><i>▤</i><span>영수증</span><b>0개</b></div>
+  </section>
+  <section class="mypage-section"><h2>혜택&amp;멤버십</h2>
+    <button><i class="benefit-icon stamp">e</i><span>e스탬프</span><b>0/3</b><em>›</em></button>
+    <button><i class="benefit-icon uni">U</i><span>유니버스클럽</span><em>›</em></button>
+    <button><i class="benefit-icon traders">TR</i><span>트레이더스클럽</span><em>›</em></button>
+    <button><i class="benefit-icon reward">₩</i><span>리워드 링크</span><em>›</em></button>
+  </section>
+  <section class="mypage-section my-activity" id="my-activity"><h2>내 활동</h2>
+    <button data-a="community-tab"><span>커뮤니티 활동</span><em>›</em></button>
+    <button data-a="account-settings"><span>계정 정보</span><em>›</em></button>
+    <button data-a="logout"><span>로그아웃</span><em>›</em></button>
+  </section>
+  ${shareTab()}`;
+}
+function vReserve(){
+  return `${head('소분 예약',false)}
+  <section class="reserve-intro"><b>내 소분 예약</b><p>참여 중인 모집과 확정된 예약을 확인하세요.</p></section>
+  <div class="reserve-shortcuts">
+    <button data-a="reserve-section" data-v="pending-reservations">모집 참여 <b>${state.pending.length}건</b></button>
+    <button data-a="reserve-section" data-v="waitlist-reservations">마감 대기 <b>${state.waitlist.length}건</b></button>
+    <button data-a="cart">확정 예약 <b>${state.cart.length}건</b></button>
+  </div>
+  <section class="reserve-section" id="pending-reservations"><h2>모집 참여 중</h2>
+    ${state.pending.length?state.pending.map(x=>{const p=byId(x.pid),r=state.rounds.find(y=>+y.product_id===x.pid);return `<div class="account-order"><b>${escapeHtml(p.name)}</b><span>${x.qty}소분 · ${r?`모집 ${r.joined_qty}/${r.group_size}`:'다른 이용자 참여 대기 중'}</span><button data-a="ask-cancel" data-v="${x.oid}">참여 취소</button></div>`;}).join(''):'<p class="mini">참여 중인 모집이 없어요.</p>'}
+  </section>
+  <section class="reserve-section" id="waitlist-reservations"><h2>마감 대기</h2>
+    ${state.waitlist.length?state.waitlist.map(x=>`<div class="account-order"><b>${escapeHtml(byId(x.pid).name)}</b><span>${x.qty}소분 · 다음 모집 대기</span><button data-a="leave-wait" data-v="${x.pid}">대기 취소</button></div>`).join(''):'<p class="mini">대기 신청한 상품이 없어요.</p>'}
+  </section>
+  <section class="reserve-section"><h2>확정된 예약</h2>
+    ${state.cart.length?`<p class="mini">확정된 예약은 장바구니에서 QR과 함께 확인할 수 있어요.</p><button class="btn" data-a="cart">확정 예약 / QR 보기</button>`:'<p class="mini">확정된 예약이 없어요.</p>'}
+  </section>
+  <button class="linkrow" data-a="shop">소분 상품 둘러보기 ›</button>
+  ${shareTab()}`;
 }
 async function submitAuth(form){
   const cfg = window.TRADERS_SUPABASE || {};
@@ -433,7 +505,7 @@ function modalHTML(){
 
 /* ---------- 렌더 & 이벤트 ---------- */
 function render(){
-  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, search:vSearch, community:vCommunity, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
+  const v = {'share-home':vShareHome, categories:vCategories, 'fresh-list':vFreshList, 'meat-list':vMeatList, search:vSearch, community:vCommunity, reserve:vReserve, detail:vDetail, cart:vCart, visit:vVisit, login:()=>vAuth(false), signup:()=>vAuth(true), account:vAccount}[state.view];
   $('#s-share').innerHTML = v();
   $('#layer').innerHTML = modalHTML();
   syncHomeAuth();
@@ -451,7 +523,7 @@ async function joinCurrentRound(){
     await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});
     await syncSharedData({quiet:true}); state.modal=null;
     const confirmed=state.cart.some(x=>x.pid===p.id);
-    state.view=confirmed?'cart':'account'; render(); top0();
+    state.navTab='reserve';state.view='reserve';render();top0();
     toast(confirmed?'모집이 완료되어 예약과 QR이 발급됐어요':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
   }catch(error){toast(error.message||'모집 참여에 실패했어요');}
 }
@@ -477,7 +549,7 @@ async function startNewRound(){
       await dbRpc('join_share_waitlist',{p_product_id:p.id,p_qty:state.qty,p_amount:calc(p,state.qty)});
       await syncSharedData({quiet:true});
     }
-    state.view=state.cart.some(x=>x.pid===p.id)?'cart':'account';render();top0();
+    state.view=state.cart.some(x=>x.pid===p.id)?'cart':'reserve';state.navTab='reserve';render();top0();
     toast(state.cart.some(x=>x.pid===p.id)?'모집이 완료되어 예약과 QR이 발급됐어요':state.pending.some(x=>x.pid===p.id)?'새 소분 모집에 참여했어요':'다음 소분 모집 대기 신청이 완료됐어요');
   }catch(error){await syncSharedData().catch(()=>{});render();toast(error.message==='ROUND_CLOSED'?'대기자가 먼저 모집을 완료했어요':error.message||'새 모집을 시작하지 못했어요');}
 }
@@ -488,8 +560,8 @@ async function cancelSharedOrder(){
 }
 
 document.addEventListener('click', e => {
-  if(e.target.closest('[data-a="auth-entry"]')){ state.navTab='account';state.view=state.session?'account':'login'; render(); return; }
-  if(e.target.closest('#go-tra')){ e.preventDefault(); state.stack = []; state.view = 'share-home'; render(); top0(); return; }
+  if(e.target.closest('[data-a="auth-entry"]')){ navigateTab(state.session?'account':'login','account'); return; }
+  if(e.target.closest('#go-tra')){ e.preventDefault(); state.stack = ['root-home']; state.navTab='home'; state.view = 'share-home'; render(); top0(); return; }
   const el = e.target.closest('[data-a]'); if(!el) return;
   if(el.dataset.a === 'overlay' && e.target !== el) return;     // 팝업 바깥(배경)을 눌렀을 때만 닫기
   e.stopPropagation();
@@ -497,15 +569,19 @@ document.addEventListener('click', e => {
   const a = el.dataset.a, v = el.dataset.v;
   switch(a){
     case 'back': back(); break;
-    case 'exit': state.stack = []; state.modal = null; syncHomeAuth(); show('home'); break;
+    case 'exit': state.stack = []; state.modal = null; state.view='root-home'; syncHomeAuth(); show('home'); break;
     case 'login': state.view='login'; render(); break;
     case 'signup': state.view='signup'; render(); break;
-    case 'account': case 'account-tab': state.navTab='account';state.view=state.session?'account':'login'; render(); break;
-    case 'share-home': state.navTab='home';state.view='share-home'; render(); break;
+    case 'account': case 'account-tab': navigateTab(state.session?'account':'login','account'); break;
+    case 'root-home': state.stack=[];state.view='root-home';state.navTab='home';show('home');top0();break;
+    case 'share-home': navigateTab('share-home','home'); break;
     case 'logout': state.session=null; state.cart=[]; state.pending=[]; state.waitlist=[]; localStorage.removeItem(AUTH_KEY); syncHomeAuth(); state.navTab='home';state.view='share-home'; render(); toast('로그아웃했어요'); break;
-    case 'home-tab': state.navTab='home';state.stack = []; go('share-home', false); break;
-    case 'reserve-tab': state.navTab='reserve';state.stack=[];state.view='share-home';render();top0();break;
-    case 'community-tab': state.navTab='community';state.stack=[];state.view='community';render();loadCommunity().catch(error=>toast(error.message||'커뮤니티를 불러오지 못했어요'));top0();break;
+    case 'home-tab': navigateTab('share-home','home'); break;
+    case 'reserve-tab': navigateTab('reserve','reserve'); break;
+    case 'community-tab':
+      navigateTab('community','community');
+      loadCommunity().catch(error=>toast(error.message||'커뮤니티를 불러오지 못했어요'));
+      break;
     case 'cat':
       if(el.dataset.on !== 'true'){ toast('준비 중이에요'); break; }
       state.navTab='';state.tab='전체'; go(v==='신선식품'?'fresh-list':'meat-list'); break;
@@ -523,8 +599,11 @@ document.addEventListener('click', e => {
     case 'start-round': startNewRound(); break;
     case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
-    case 'shop': state.navTab='';state.tab = '전체'; state.stack = ['share-home']; state.view = 'categories'; render(); top0(); break;
+    case 'shop': state.navTab='';state.tab = '전체'; go('categories'); break;
     case 'community-refresh': loadCommunity().catch(error=>toast(error.message||'목록을 새로고침하지 못했어요')); break;
+    case 'account-menu': $('#my-activity')?.scrollIntoView({behavior:'smooth',block:'start'}); break;
+    case 'account-settings': toast('계정 정보 설정은 준비 중이에요'); break;
+    case 'reserve-section': document.getElementById(v)?.scrollIntoView({behavior:'smooth',block:'start'}); break;
     case 'suggestion-vote': toggleSuggestionVote(v); break;
     case 'qr': state.modal = {type:'qr', oid:v}; render(); break;
     case 'ask-cancel': state.modal = {type:'cancel', oid:v}; render(); break;
@@ -554,11 +633,9 @@ loadProducts().then(()=>syncSharedData({quiet:true})).catch(error=>toast('상품
 setInterval(()=>{
   if(document.visibilityState==='visible'){
     syncSharedData().catch(()=>{});
-    if(state.view==='community') loadCommunity().catch(()=>{});
   }
 },7000);
 window.addEventListener('focus',()=>{
   loadProducts().catch(()=>{});
   syncSharedData({quiet:true}).catch(()=>{});
-  if(state.view==='community') loadCommunity().catch(()=>{});
 });

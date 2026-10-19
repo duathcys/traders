@@ -259,3 +259,49 @@ html.framed body{background:#fff}
 .account-order{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:5px}
 .account-order b{font-size:14px}.account-order span{font-size:12px;color:var(--sub)}
 .account-order button{height:auto;min-height:32px;border:0;justify-content:flex-end;color:var(--red);font-size:12px;font-weight:700}
+.mypage-header{height:62px;padding:0 12px;display:flex;align-items:center;gap:10px;background:#fff;position:sticky;top:0;z-index:4}
+.mypage-header button{width:32px;height:38px;display:grid;place-items:center;color:#222}
+.mypage-header button .ic{width:23px;height:23px}
+.mypage-header h1{font-size:18px;text-align:center;flex:1;font-weight:700}
+.mypage-profile{padding:28px 22px 20px;background:#f6f6f6;display:flex;align-items:center;gap:14px}
+.mypage-avatar{width:64px;height:64px;border-radius:50%;background:#e2e2e2;color:#aaa;display:grid;place-items:center;flex:none}
+.mypage-avatar .ic{width:36px;height:36px}
+.mypage-profile span,.mypage-profile b{display:block;overflow-wrap:anywhere}
+.mypage-profile span{font-size:14px;color:#555;margin-bottom:4px}
+.mypage-profile b{font-size:16px}
+.membership-cards{display:flex;gap:12px;overflow-x:auto;padding:0 20px 24px;background:#f6f6f6;scrollbar-width:none}
+.membership-cards::-webkit-scrollbar{display:none}
+.membership-card{min-width:250px;min-height:118px;padding:24px 18px;border:1px solid #d7d7d7;border-left:8px solid #a6d928;border-radius:22px;background:#fff;display:flex;flex-direction:column;justify-content:space-between}
+.membership-card b{font-size:17px}
+.membership-card span{font-size:12px;color:#555;display:flex;align-items:center;gap:7px}
+.membership-card i{font-style:normal;width:22px;height:22px;border-radius:50%;background:#9ad52a;color:#15200d;display:grid;place-items:center;font-weight:900}
+.membership-card.membership-emart{border-left-color:#ffe128}
+.membership-card.membership-emart i{background:#ffe128;color:#222}
+.mypage-stats{display:grid;grid-template-columns:repeat(3,1fr);padding:24px 12px;background:#f6f6f6;border-bottom:10px solid var(--bg);text-align:center}
+.mypage-stats div{display:grid;justify-items:center;gap:4px;border-right:1px solid #ddd;color:#777}
+.mypage-stats div:last-child{border:0}
+.mypage-stats i{font-style:normal;font-size:25px;color:#333}
+.mypage-stats span{font-size:13px}
+.mypage-stats b{font-size:15px;color:#222}
+.mypage-section{padding:30px 20px 18px}
+.mypage-section h2{font-size:20px;margin:0 0 14px}
+.mypage-section>button{width:100%;min-height:66px;display:flex;align-items:center;gap:12px;text-align:left;border-bottom:1px solid var(--line);font-size:15px;color:#555}
+.mypage-section>button>span{flex:1}
+.mypage-section>button>b{color:#0876db}
+.mypage-section>button>em{font-size:24px;color:#111;font-style:normal}
+.benefit-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;font-style:normal;font-size:14px;font-weight:900;color:#222}
+.benefit-icon.stamp{background:#ffe22a;border:2px solid #d5b900}
+.benefit-icon.uni{background:#dce7ff;border:2px solid #9ab3ee}
+.benefit-icon.traders{background:#e7f8cd;border:2px solid #9dcf34;font-size:9px}
+.benefit-icon.reward{background:#fff1c2;border:2px solid #e4bf30}
+.mypage-section.my-activity{margin-top:8px;border-top:10px solid var(--bg);padding-bottom:36px}
+.reserve-intro{padding:22px 18px 16px;background:var(--bg)}
+.reserve-intro b{font-size:19px}
+.reserve-intro p{font-size:12px;color:var(--sub);margin-top:5px}
+.reserve-shortcuts{display:grid;grid-template-columns:repeat(3,1fr);padding:16px 8px;border-bottom:8px solid var(--bg);text-align:center}
+.reserve-shortcuts button{display:grid;gap:6px;padding:8px 3px;border-right:1px solid var(--line);font-size:11px;color:#666}
+.reserve-shortcuts button:last-child{border:0}
+.reserve-shortcuts b{font-size:15px;color:var(--txt)}
+.reserve-section{padding:22px 18px;border-bottom:8px solid var(--bg);scroll-margin-top:68px}
+.reserve-section h2{font-size:17px;margin-bottom:12px}
+.reserve-section>.btn{margin-top:12px}
