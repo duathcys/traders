@@ -6,23 +6,22 @@
 <title>TRADERS - iPhone Preview</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:linear-gradient(135deg,#e6ece9,#f7f9f8);font-family:-apple-system,"Noto Sans KR",sans-serif}
-.stage{height:100%;display:grid;place-items:center}
+.stage{position:relative;width:100%;height:100%;overflow:hidden}
 /* iPhone 15/16 : 화면 393 x 852 (19.5:9), 베젤 12px */
-.phone{--bz:12px;position:relative;width:calc(393px + var(--bz)*2);height:calc(852px + var(--bz)*2);padding:var(--bz);background:#111;border-radius:67px;box-shadow:0 0 0 2px #3a3b3e,0 0 0 5px #1a1a1c,0 40px 80px -20px rgba(0,0,0,.45);transform:scale(var(--s,1));transform-origin:center}
+.phone{--bz:12px;width:calc(393px + var(--bz)*2);height:calc(852px + var(--bz)*2);padding:var(--bz);background:#111;border-radius:67px;box-shadow:0 0 0 2px #3a3b3e,0 0 0 5px #1a1a1c,0 40px 80px -20px rgba(0,0,0,.45);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(var(--s,1))}
 .screen{position:relative;width:393px;height:852px;border-radius:55px;overflow:hidden;background:#fff}
 iframe{width:100%;height:100%;border:0;display:block;background:#fff}
 .island{position:absolute;z-index:3;top:11px;left:50%;transform:translateX(-50%);width:124px;height:36px;border-radius:20px;background:#000;pointer-events:none}
-.status{position:absolute;z-index:2;top:0;left:0;right:0;height:54px;padding:18px 34px 0;display:flex;justify-content:space-between;font-size:15px;font-weight:600;pointer-events:none;color:#111}
+.status{position:absolute;z-index:2;top:0;left:0;right:0;height:54px;padding:18px 34px 0;display:flex;justify-content:space-between;font-size:15px;font-weight:600;pointer-events:none;color:#111;background:rgba(255,255,255,.94);backdrop-filter:blur(10px)}
 .status span:last-child{display:flex;gap:6px;align-items:center}
 .homebar{position:absolute;z-index:3;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#111;pointer-events:none}
 .btn{position:absolute;width:3px;background:#2a2b2e;border-radius:2px}
 .b1{left:-5px;top:140px;height:32px}.b2{left:-5px;top:200px;height:60px}.b3{left:-5px;top:276px;height:60px}.b4{right:-5px;top:230px;height:96px}
 /* 실제 폰에서 열면 프레임 없이 전체 화면 */
 @media (max-width:520px){
-  html,body{overflow:auto}.stage{display:block}
-  .phone{width:100%;height:100vh;height:100dvh;padding:0;border-radius:0;box-shadow:none;transform:none;background:#fff}
+    .phone{position:static;width:100%;height:100vh;height:100dvh;padding:0;border-radius:0;box-shadow:none;transform:none;background:#fff}
   .screen{width:100%;height:100%;border-radius:0}
   .island,.status,.homebar,.btn{display:none}
 }
@@ -48,7 +47,7 @@ const mobile = innerWidth <= 520;
 document.getElementById('app').src = './index.html' + (mobile ? '' : '?frame=1');
 function fit(){
   if(mobile) return;
-  const s = Math.min(1, (innerHeight - 40) / (852 + 24), (innerWidth - 40) / (393 + 24));
+  const s = Math.min(1, (innerHeight - 32) / (852 + 24), (innerWidth - 32) / (393 + 24));
   document.getElementById('phone').style.setProperty('--s', s);
 }
 fit(); addEventListener('resize', fit);
