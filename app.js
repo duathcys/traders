@@ -124,6 +124,7 @@ syncHomeAuth();
 
 const currentRound = p => p.price && !p.availability ? state.rounds.find(r => +r.product_id === p.id && r.status === 'open') : null;
 const latestRound = p => state.rounds.find(r => +r.product_id === p.id);
+const isOrderInRound = (order, productId, roundId) => Number(order.pid) === Number(productId) && String(order.roundId) === String(roundId);
 const remain = p => { const r=currentRound(p); return r ? Math.max(0, r.group_size-r.joined_qty) : 0; };
 const cartTotal = () => [...state.cart,...state.issued].reduce((a, c) => a + c.price, 0);
 const cancellationFee = amount => Math.min(CANCEL_FEE_MAX, Math.max(CANCEL_FEE_MIN, Math.round(amount * CANCEL_FEE_RATE)));
@@ -400,7 +401,7 @@ function vDetail(){
   const reviewExamples=SPLIT_REVIEW_EXAMPLES[p.category]||['필요한 만큼 나눠 받아 보관과 활용이 편했어요.','한 번에 다 쓰기 알맞은 양이라 남김 없이 요리했어요.','대용량 구매가 부담스러웠는데 필요한 분량만 고를 수 있어 좋았어요.'];
   const reviewExample=reviewExamples[(Number(p.id)||0)%reviewExamples.length];
   const q = Math.min(Math.max(1, state.qty), Math.max(1, r));
-  const pending=state.pending.find(x=>x.pid===p.id), waiting=state.waitlist.find(x=>x.pid===p.id);
+  const pending=round?state.pending.find(x=>isOrderInRound(x,p.id,round.id)):null, waiting=state.waitlist.find(x=>x.pid===p.id);
   state.qty = q;
   return `${head('소분 예약')}
   <div class="d-img ${p.cls}">${productVisual(p)}<span class="tag">${p.portions}인 소분</span></div>
@@ -690,24 +691,36 @@ function joinErrorNotice(error){
 }
 async function joinCurrentRound(){
   if(!requireLogin()) return;
+  if(joinCurrentRound.inProgress) return;
+  joinCurrentRound.inProgress=true;
   const p=state.product, q=state.qty;
+  const expectedRoundId=currentRound(p)?.id;
   try{
-    await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});
+    const result=await dbRpc('join_share',{p_product_id:p.id,p_qty:q,p_amount:calc(p,q)});
     await syncSharedData({quiet:true}); state.modal=null;
-    const confirmed=state.cart.some(x=>x.pid===p.id);
+    const roundId=result?.round_id??expectedRoundId;
+    const confirmed=state.cart.some(x=>isOrderInRound(x,p.id,roundId));
     state.navTab='reserve';state.view='reserve';render();top0();
-    if(confirmed){const order=state.cart.find(x=>x.pid===p.id);if(order){state.modal={type:'success',oid:order.oid};render();}}
+    if(confirmed){const order=state.cart.find(x=>isOrderInRound(x,p.id,roundId));if(order){state.modal={type:'success',oid:order.oid};render();}}
     toast(confirmed?'예약이 확정됐어요!':'모집 참여 완료! 전체 수량이 모이면 확정돼요');
   }catch(error){
-    const notice=joinErrorNotice(error);
+    let notice=joinErrorNotice(error);
     if(!notice){toast(error.message||'모집 참여에 실패했어요');return;}
     state.modal=null;
     await syncSharedData({quiet:true}).catch(()=>{});
+    const activeRound=currentRound(state.product)||latestRound(state.product);
+    const hasOrderInActiveRound=activeRound&&[...state.pending,...state.cart,...state.issued].some(x=>isOrderInRound(x,p.id,activeRound.id));
+    if(isAlreadyJoinedError(error)&&!hasOrderInActiveRound) notice={
+      title:'신청 상태를 확인할 수 없어요',
+      message:'중복 신청 응답을 받았지만 현재 모집에서 신청 내역을 찾지 못했어요. 화면을 새로고침한 뒤 다시 확인해 주세요.'
+    };
     const available=state.product?remain(state.product):0;
     if(available>0) state.qty=Math.min(state.qty,available);
     render();
     state.modal={type:'notice',...notice};
     render();
+  }finally{
+    joinCurrentRound.inProgress=false;
   }
 }
 async function addToWaitlist(){

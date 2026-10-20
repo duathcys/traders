@@ -15,6 +15,10 @@ const syncEnd = appSource.indexOf('\nfunction toast', syncStart);
 assert.notEqual(syncStart, -1, 'syncSharedData function should exist');
 assert.notEqual(syncEnd, -1, 'syncSharedData function should have an end marker');
 const syncSource = appSource.slice(syncStart, syncEnd);
+const orderPredicateLine = appSource.match(/^const isOrderInRound = .*;$/m)?.[0];
+assert.ok(orderPredicateLine, 'round-scoped order predicate should exist');
+const orderPredicateContext = {};
+vm.runInNewContext(`${orderPredicateLine}; globalThis.isOrderInRound=isOrderInRound;`, orderPredicateContext);
 
 function createHarness({ rpcResult, refresh }) {
   const events = [];
@@ -108,4 +112,10 @@ test('a slow older refresh cannot restore a stale waitlist row', async () => {
   await oldRefresh;
 
   assert.equal(state.waitlist.length, 0);
+});
+
+test('an order from a different round does not count as already joined', () => {
+  const order = { pid: 42, roundId: 17 };
+  assert.equal(orderPredicateContext.isOrderInRound(order, 42, 18), false);
+  assert.equal(orderPredicateContext.isOrderInRound(order, 42, '17'), true);
 });
