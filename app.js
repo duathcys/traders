@@ -112,6 +112,7 @@ const byId = id => PRODUCTS.find(p => +p.id === +id);
 
 const state = { view:'root-home', stack:[], navTab:'home', tab:'전체', freshCategory:'전체', productCategory:'전체', searchQuery:'', product:null, qty:1, cart:[], issued:[], completed:[], pending:[], waitlist:[], rounds:[], community:[], modal:null };
 let communityLoadVersion=0;
+let sharedSyncVersion=0;
 try { state.session = JSON.parse(localStorage.getItem(AUTH_KEY)) || null; } catch(e) { state.session = null; }
 
 function syncHomeAuth(){
@@ -204,6 +205,7 @@ async function toggleSuggestionVote(id){
   }catch(error){toast(error.message||'투표를 반영하지 못했어요');}
 }
 async function syncSharedData({quiet=false}={}){
+  const syncVersion=++sharedSyncVersion;
   const roundsPromise=dbRequest('share_round_progress?select=*&order=created_at.desc');
   const ownPromise=state.session?Promise.all([
     dbRequest('share_orders?select=*&status=eq.confirmed&order=created_at.desc'),
@@ -213,6 +215,9 @@ async function syncSharedData({quiet=false}={}){
     dbRequest('share_waitlist?select=*&status=eq.waiting&order=created_at.asc')
   ]):Promise.resolve([[],[],[],[],[]]);
   const [rounds,own]=await Promise.all([roundsPromise,ownPromise]);
+  // Ignore an older poll if a newer refresh has already started. Otherwise a
+  // slow response can put a cancelled waitlist row back into the rendered UI.
+  if(syncVersion!==sharedSyncVersion) return;
   const wasPending=new Set(state.pending.map(x=>x.oid));
   state.rounds=rounds||[];
   // A confirmed order is eligible for QR only if its cohort itself is filled.
@@ -755,6 +760,40 @@ async function cancelSharedOrder(){
   }
   catch(error){toast(error.message||'취소에 실패했어요');}
 }
+async function leaveSharedWaitlist(productId,button){
+  const previousLabel=button.textContent;
+  button.disabled=true;
+  button.textContent='취소 중…';
+  try{
+    const removed=await dbRpc('leave_share_waitlist',{p_product_id:productId});
+    if(removed===true){
+      state.waitlist=state.waitlist.filter(item=>item.pid!==productId);
+      state.modal={type:'notice',title:'대기 취소 완료',message:'마감 대기 신청이 취소되어 목록에서 삭제됐어요.'};
+      render();
+      // The RPC already confirmed the change; a refresh is only for any other
+      // shared state and must not turn a successful cancellation into an error.
+      await syncSharedData({quiet:true}).catch(()=>{});
+      render();
+      return;
+    }
+
+    await syncSharedData({quiet:true});
+    if(state.pending.some(item=>item.pid===productId)){
+      showShareAlert('대기 순서가 되어 이미 새 모집에 참여됐어요');
+    }else if(state.waitlist.some(item=>item.pid===productId)){
+      state.modal={type:'notice',title:'대기를 취소하지 못했어요',message:'대기 상태가 그대로예요. 잠시 후 다시 시도해 주세요.'};
+      render();
+    }else{
+      state.modal={type:'notice',title:'대기 신청이 이미 처리됐어요',message:'마감 대기 목록을 최신 상태로 불러왔어요.'};
+      render();
+    }
+  }catch(error){
+    toast(error.message||'대기 취소에 실패했어요');
+  }finally{
+    button.disabled=false;
+    button.textContent=previousLabel;
+  }
+}
 async function markBarcodeIssued(code){
   try{
     await dbRpc('mark_share_barcode_issued',{p_public_code:code});
@@ -815,7 +854,7 @@ document.addEventListener('click', e => {
     case 'qty-dec': state.qty = Math.max(1, state.qty - 1); render(); break;
     case 'ask-reserve': state.modal = {type:'confirm'}; render(); break;
     case 'join-wait': addToWaitlist(); break;
-    case 'leave-wait': dbRpc('leave_share_waitlist',{p_product_id:+v}).then(()=>syncSharedData({quiet:true})).then(()=>{render();toast('대기가 취소됐어요');}).catch(error=>toast(error.message||'대기 취소에 실패했어요')); break;
+    case 'leave-wait': leaveSharedWaitlist(+v,el); break;
     case 'start-round': startNewRound(); break;
     case 'confirm-reserve': joinCurrentRound(); break;
     case 'cart': state.modal = null; go('cart'); break;
